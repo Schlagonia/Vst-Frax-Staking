@@ -2,7 +2,7 @@
 // Feel free to change the license, but this is what we use
 pragma solidity ^0.8.12;
 pragma experimental ABIEncoderV2;
-import "forge-std/console.sol";
+
 // These are the core Yearn libraries
 import {BaseStrategy, StrategyParams} from "@yearnvaults/contracts/BaseStrategy.sol";
 
@@ -47,41 +47,36 @@ contract CurveFraxVst is BaseStrategy {
     IBalancerVault internal constant balancerVault =
         IBalancerVault(0xBA12222222228d8Ba445958a75a0704d566BF2C8);
 
-    address constant vstaPool = address(0xC61ff48f94D801c1ceFaCE0289085197B5ec44F0);
+    address private constant vstaPool = address(0xC61ff48f94D801c1ceFaCE0289085197B5ec44F0);
     bytes32 public immutable vstaPoolId;
-    address constant wethUsdcPool = address(0x64541216bAFFFEec8ea535BB71Fbc927831d0595);
+    address private constant wethUsdcPool = address(0x64541216bAFFFEec8ea535BB71Fbc927831d0595);
     bytes32 public immutable wethUsdcPoolId;
-    address constant usdcVstPool = address(0x5A5884FC31948D59DF2aEcCCa143dE900d49e1a3);
+    address private constant usdcVstPool = address(0x5A5884FC31948D59DF2aEcCCa143dE900d49e1a3);
     bytes32 public immutable usdcVstPoolId;
+    //needed for swaps not to fail
+    uint256 public minVsta = 1e15;
 
     //Frax addresses and variables for staking
     IStaker public constant staker =
         IStaker(0x127963A74c07f72D862F2Bdc225226c3251BD117);
+    IUniswapV2Router02 public constant fraxRouter =
+        IUniswapV2Router02(0xc2544A32872A91F4A553b404C6950e89De901fdb);
     //Need for staking. Locks the tokens for the minumum amount of time.
     uint256 public minLockTime; 
 
-    IUniswapV2Router02 public constant fraxRouter =
-        IUniswapV2Router02(0xc2544A32872A91F4A553b404C6950e89De901fdb);
-
     //Curve pool and indexs
-    ICurveFi public constant curvePool =
+    ICurveFi internal constant curvePool =
         ICurveFi(0x59bF0545FCa0E5Ad48E13DA269faCD2E8C886Ba4);
     
-    uint256 vstIndex = 0;
-    uint256 fraxIndex = 1;
+    uint256 internal constant vstIndex = 0;
+    uint256 internal constant fraxIndex = 1;
 
-    //AggregatorV3Interface internal constant priceFeed = AggregatorV3Interface(0x190b8C66E8e1694Ae9Ff16170122Feb2D287820f);
-    
-    bool internal forceHarvestTriggerOnce; // only set this to true externally when we want to trigger our keepers to harvest for us
-    uint256 public creditThreshold; // amount of credit in underlying tokens that will automatically trigger a harvest
     uint256 public lastDeposit = 0;
+    uint256 public lastDepositAmount;
 
     uint256 private immutable wantDecimals;
     uint256 private immutable minWant;
     uint256 public immutable maxSingleInvest;
-
-    //needed for swaps not to fail
-    uint256 public minVsta = 1e15;
 
     constructor(address _vault) BaseStrategy(_vault) {
         require(staker.stakingToken() == want, "Wrong want for staker");
@@ -138,14 +133,11 @@ contract CurveFraxVst is BaseStrategy {
             uint256 _loss,
             uint256 _debtPayment
         )
-    
     {
        _profit = 0;
         _loss = 0; 
         _debtPayment = 0;
 
-        // Liquidate position so that everything is in want
-        //Rewards are payed out based on amount withdrawn so this is the best way to get all rewards to the strat
         harvester();
 
         //get base want balance
@@ -158,10 +150,13 @@ contract CurveFraxVst is BaseStrategy {
 
         //Balance - Total Debt is profit
         if (balance >= debt) {
-            _profit = balance - debt;
-
-            uint256 needed = _profit + _debtOutstanding;
+            uint256 needed;
+            unchecked{
+                _profit = balance - debt;
+                needed = _profit + _debtOutstanding;
+            }
             if (needed > wantBalance) {
+                //Only gets called on harvest which should be more that oneDay apart so we dont need to check liquidity
                 withdrawSome(needed - wantBalance);
 
                 wantBalance = want.balanceOf(address(this));
@@ -182,10 +177,10 @@ contract CurveFraxVst is BaseStrategy {
         } else {
             _loss = debt - balance;
             if (_debtOutstanding > wantBalance) {
+                //Only gets called on harvest which should be more that one Day apart so we dont need to check liquidity
                 withdrawSome(_debtOutstanding - wantBalance);
                 wantBalance = want.balanceOf(address(this));
             }
-
             _debtPayment = Math.min(wantBalance, _debtOutstanding);
         }
     }
@@ -198,8 +193,11 @@ contract CurveFraxVst is BaseStrategy {
         //we are spending all our cash unless we have debt outstanding
         uint256 _wantBal = balanceOfWant();
         if (_wantBal < _debtOutstanding) {
+
+            //Only gets called on harvest which should be more that oneDay apart so we dont need to check liquidity
             withdrawSome(_debtOutstanding - _wantBal);
             _wantBal = balanceOfWant();
+            
             //An entire Kek must be removed for any withdraws so its likely we will over withdraw and need to reinvest the extra
             if(_wantBal > _debtOutstanding + minWant) {
                 depositSome(_wantBal - _debtOutstanding);
@@ -207,10 +205,7 @@ contract CurveFraxVst is BaseStrategy {
             return;
         }
 
-        // send all of our want tokens to be deposited
-        uint256 toInvest = _wantBal - _debtOutstanding;
-
-        uint256 _wantToInvest = Math.min(toInvest, maxSingleInvest);
+        uint256 _wantToInvest = Math.min((_wantBal - _debtOutstanding), maxSingleInvest);
         //stake
         depositSome(_wantToInvest);
     }
@@ -226,7 +221,17 @@ contract CurveFraxVst is BaseStrategy {
             return (_amountNeeded, 0);
         }
 
-        withdrawSome(_amountNeeded - _liquidWant);
+        uint256 needed;
+        unchecked {
+            needed = _amountNeeded - _liquidWant;
+        } 
+   
+        //Need to check that their is enough liquidity to withdraw so we dont report loss
+        if(lastDeposit + minLockTime > block.timestamp) {
+            require(stakedBalance() - lastDepositAmount >= needed, "Need to wait till most recent deposit unlocks");
+        }
+
+        withdrawSome(needed);
 
         _liquidWant = balanceOfWant();
 
@@ -242,22 +247,19 @@ contract CurveFraxVst is BaseStrategy {
     }
 
     function depositSome(uint256 _amount) internal {
-        if(_amount < minWant) {
-            return;
-        }
+        if(_amount < minWant) return;
 
         staker.stakeLocked(_amount, minLockTime);
         lastDeposit = block.timestamp;
+        lastDepositAmount = _amount;
     }
 
     function withdrawSome(uint256 _amount) internal {
-        if(_amount == 0) {
-            return;
-        }
+        if(_amount == 0) return;
 
         IStaker.LockedStake[] memory stakes = staker.lockedStakesOf(address(this));
 
-        uint256 i =0;
+        uint256 i = 0;
         uint256 needed = _amount;
         while(needed > 0 && i < stakes.length) {
             IStaker.LockedStake memory stake = stakes[i];
@@ -275,33 +277,26 @@ contract CurveFraxVst is BaseStrategy {
                 } else {
                     break;
                 }
-                
             } else {
-                i++;
+                unchecked{
+                    i++;
+                }
             }
         }
-   
     }
 
     function harvester() internal {
-
         if(staker.lockedLiquidityOf(address(this)) > 0) {
             staker.getReward();
         }
-        
         swapFxsToFrax();
         swapVstaToVst();
-
         addCurveLiquidity();
-     
-        
     }
 
     function swapFxsToFrax() internal {
         uint256 fxsBal = FXS.balanceOf(address(this));
-        if(fxsBal == 0) {
-            return;
-        }
+        if(fxsBal == 0) return;
 
         ///Swap to FRAX
         _checkAllowance(address(fraxRouter), address(FXS), fxsBal);
@@ -320,7 +315,6 @@ contract CurveFraxVst is BaseStrategy {
     }
 
     function swapVstaToVst() internal {
-    
         _sellVSTAforWeth();
         _sellWethForVST();
     }
@@ -328,9 +322,7 @@ contract CurveFraxVst is BaseStrategy {
     function _sellVSTAforWeth() internal {
         uint256 _amountToSell = VSTA.balanceOf(address(this));
    
-        if(_amountToSell < minVsta) {
-            return;
-        }
+        if(_amountToSell < minVsta) return;
 
         _checkAllowance(
             address(balancerVault),
@@ -357,22 +349,19 @@ contract CurveFraxVst is BaseStrategy {
                 false
             );
 
-
         balancerVault.swap(
             singleSwap,
             fundManagement,
             0,
             block.timestamp
-        );
-        
+        );        
     }
 
     function _sellWethForVST() internal {
         uint256 wethBalance = WETH.balanceOf(address(this));
  
-        if(wethBalance == 0) {
-            return;
-        }
+        if(wethBalance == 0) return;
+
         _checkAllowance(address(balancerVault), address(WETH), wethBalance);
 
         //Batch swap from WETH -> USDC -> VST
@@ -424,9 +413,7 @@ contract CurveFraxVst is BaseStrategy {
         uint256 fraxBal = FRAX.balanceOf(address(this));
         uint256 vstBal = VST.balanceOf(address(this));
 
-        if(fraxBal == 0 && vstBal == 0) {
-            return;
-        }
+        if(fraxBal == 0 && vstBal == 0) return;
     
         uint256[2] memory amounts;
         amounts[fraxIndex] = fraxBal;
@@ -455,14 +442,13 @@ contract CurveFraxVst is BaseStrategy {
     //Will liquidate as much as possible at the time. May not be able to liquidate all if anything has been deposited in the last day
     // Would then have to be called again after locked period has expired
     function liquidateAllPositions() internal override returns (uint256) {
-   
         withdrawSome(type(uint256).max);
         harvester();
         return balanceOfWant();
     }
 
     function prepareMigration(address _newStrategy) internal override {
-        require(lastDeposit + minLockTime >= block.timestamp, "Lastest deposit is not avialable yet for withdraw");
+        require(lastDeposit + minLockTime <= block.timestamp, "Lastest deposit is not avialable yet for withdraw");
         withdrawSome(type(uint256).max);
     
         uint256 fxsBal = FXS.balanceOf(address(this));

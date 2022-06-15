@@ -7,14 +7,13 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {ExtendedDSTest} from "./ExtendedDSTest.sol";
 import {stdCheats} from "forge-std/stdlib.sol";
 import {Vm} from "forge-std/Vm.sol";
-import {IVault} from "../../../interfaces/Vault.sol";
+import {IVault} from "../../interfaces/Vault.sol";
 import "forge-std/console.sol";
 
-import { IStaker } from "../../../interfaces/Frax/IStaker.sol";
-import "../../../interfaces/Chainlink/AggregatorV3Interface.sol";
+import { IStaker } from "../../interfaces/Frax/IStaker.sol";
 
 // NOTE: if the name of the strat or file changes this needs to be updated
-import {CurveFraxVst} from "../../../CurveFraxVst.sol";
+import {CurveFraxVst} from "../../CurveFraxVst.sol";
 
 // Artifact paths for deploying from the deps folder, assumes that the command is run from
 // the project root.

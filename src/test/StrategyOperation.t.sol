@@ -4,11 +4,9 @@ import "forge-std/console.sol";
 
 import {StrategyFixture} from "./utils/StrategyFixture.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IStaker } from "../interfaces/Frax/IStaker.sol";
 
-import "../../interfaces/Chainlink/AggregatorV3Interface.sol";
-
-import "../../interfaces/Vesta/IStabilityPool.sol";
-import {StrategyParams, IVault} from "../../interfaces/Vault.sol";
+import {StrategyParams, IVault} from "../interfaces/Vault.sol";
 
 contract StrategyOperationsTest is StrategyFixture {
     function setUp() public override {
@@ -31,11 +29,11 @@ contract StrategyOperationsTest is StrategyFixture {
         skip(3 * ONE_MINUTE);
         strategy.tend();
         
-        skip(3 * ONE_MINUTE);
+        skip(toSkip);
         vm_std_cheats.prank(user);
         vault.withdraw();
 
-        assertRelApproxEq(want.balanceOf(user), balanceBefore, ONE_BIP_REL_DELTA);
+        assertGe(want.balanceOf(user), balanceBefore);
     }
 
     function testEmergencyExit(uint256 _amount) public {
@@ -48,11 +46,11 @@ contract StrategyOperationsTest is StrategyFixture {
         assertRelApproxEq(strategy.estimatedTotalAssets(), _amount, ONE_BIP_REL_DELTA);
 
         strategy.setEmergencyExit();
-        skip(1);
+        skip(toSkip);
         strategy.harvest();
 
         assertRelApproxEq(strategy.estimatedTotalAssets(), 0, ONE_BIP_REL_DELTA);
-        assertRelApproxEq(want.balanceOf(address(vault)), _amount, ONE_BIP_REL_DELTA);
+        assertGe(want.balanceOf(address(vault)), _amount);
     }
 
     function testProfitableHarvest(uint256 _amount) public {
@@ -68,106 +66,36 @@ contract StrategyOperationsTest is StrategyFixture {
 
         uint256 beforePps = vault.pricePerShare();
 
-        tip(address(VSTA), address(strategy), _amount / 1000); // 1 LQTY airdrop for every 1000 LUSD in strat
-
         // Harvest 2: Realize profit
         skip(1);
         strategy.harvest();
 
         skip(3600 * 6);
 
-        mockChainlink();
-
         uint256 profit = want.balanceOf(address(vault));
         assertGt(strategy.estimatedTotalAssets() + profit, _amount);
         assertGt(vault.pricePerShare(), beforePps);
-
+        skip(toSkip);
         vm_std_cheats.prank(user);
         vault.withdraw();
         assertGt(want.balanceOf(user), balanceBefore);
-    }
-
-    // Simulate some B.AMM ETH coming back into strat
-    function testOperationsWithETH(uint256 _amount) public {
-        vm_std_cheats.assume(_amount > 100 ether && _amount < 10_000 ether);
-
-        uint256 balanceBefore = want.balanceOf(address(user));
-        depositToVault(user, vault, _amount);
-
-        skip(3 * ONE_MINUTE);
-        strategy.harvest();
-        assertRelApproxEq(strategy.estimatedTotalAssets(), _amount, ONE_BIP_REL_DELTA); 
-        assertEq(address(strategy).balance, 0);
-
-        vm_std_cheats.deal(address(strategy), 1 ether);
-
-        skip(3 * ONE_MINUTE);
-        uint256 _amountToWithdraw = vault.balanceOf(user) / 2;
-        vm_std_cheats.prank(user);
-        vault.withdraw(_amountToWithdraw); // This should call liquidatePosition, which will get some ETH into the strat
-
-        assertGt(address(strategy).balance, 2);
-
-        skip(3 * ONE_MINUTE);
-        strategy.harvest();
-        assertEq(address(strategy).balance, 0);
-
-        uint256 profit = want.balanceOf(address(vault));
-        assertGt(profit, 1);
-    }
-
-    // Run it back but this time instead of harvest use sellAvailableETH to dispose of ETH
-    function testOperationsWithETHManualSell(uint256 _amount) public {
-        vm_std_cheats.assume(_amount > 100 ether && _amount < 10_000 ether);
-
-        depositToVault(user, vault, _amount);
-
-        skip(3 * ONE_MINUTE);
-        strategy.harvest();
-        assertRelApproxEq(strategy.estimatedTotalAssets(), _amount, ONE_BIP_REL_DELTA); 
-        assertEq(address(strategy).balance, 0);
-
-        uint256 _strategyAssetsBeforeETH = strategy.estimatedTotalAssets();
-
-        vm_std_cheats.deal(address(strategy), .1 ether);
-
-        skip(30 * ONE_MINUTE);
-        uint256 _amountToWithdraw = vault.balanceOf(user) / 2;
-        vm_std_cheats.prank(user);
-        vault.withdraw(_amountToWithdraw); // This should call liquidatePosition, which will get some ETH into the strat
-
-        assertGt(address(strategy).balance, 0);
-
-        strategy.sellAvailableETH();
-        assertEq(address(strategy).balance, 0);
-        assertGt(strategy.estimatedTotalAssets(), _strategyAssetsBeforeETH / 2);
-        
-        skip(3 * ONE_MINUTE);
-        strategy.harvest();
-
-        uint256 profit = want.balanceOf(address(vault));
-        assertGt(profit, 0);
     }
     
     // Simulate B.AMM not able to sell the ETH and the price moves against us
     function testIncurLosses(uint256 _amount) public {
         vm_std_cheats.assume(_amount > 100 ether && _amount < 10_000 ether);
 
-        uint256 balanceBefore = want.balanceOf(address(user));
+        //uint256 balanceBefore = want.balanceOf(address(user));
         depositToVault(user, vault, _amount);
 
         skip(3 * ONE_MINUTE);
         strategy.harvest();
         assertRelApproxEq(strategy.estimatedTotalAssets(), _amount, ONE_BIP_REL_DELTA); 
-        assertEq(address(strategy).balance, 0);
-
-        vm_std_cheats.deal(stabilityPool, 0.1 ether);
-
-        uint256 _strategyShares = IStabilityPool(stabilityPool).getCompoundedVSTDeposit(address(strategy));
-
+        skip(toSkip);
+        IStaker.LockedStake[] memory stakes = staker.lockedStakesOf(address(strategy));
         vm_std_cheats.startPrank(address(strategy));
-        IStabilityPool(stabilityPool).withdrawFromSP(_strategyShares / 10); 
-        want.transfer(address(777), want.balanceOf(address(strategy))); // Throw away 10% of value to sim losses
+        staker.withdrawLocked(stakes[0].kek_id);
+        want.transfer(address(777), want.balanceOf(address(strategy)) / 10); // Throw away 10% of value to sim losses
         vm_std_cheats.stopPrank();
 
         strategy.setDoHealthCheck(false);
@@ -184,22 +112,21 @@ contract StrategyOperationsTest is StrategyFixture {
     function testIncurEthLossesButStrategyProfit(uint256 _amount) public {
         vm_std_cheats.assume(_amount > 100 ether && _amount < 10_000 ether);
 
-        uint256 balanceBefore = want.balanceOf(address(user));
+        //uint256 balanceBefore = want.balanceOf(address(user));
         depositToVault(user, vault, _amount);
 
         skip(3 * ONE_MINUTE);
         strategy.harvest();
         assertRelApproxEq(strategy.estimatedTotalAssets(), _amount, ONE_BIP_REL_DELTA); 
         assertEq(address(strategy).balance, 0);
-
-        uint256 _strategyShares = IStabilityPool(stabilityPool).getCompoundedVSTDeposit(address(strategy));
+        skip(toSkip);
+        IStaker.LockedStake[] memory stakes = staker.lockedStakesOf(address(strategy));
         vm_std_cheats.startPrank(address(strategy));
-        IStabilityPool(stabilityPool).withdrawFromSP(_strategyShares / 1000); 
-        want.transfer(address(777), want.balanceOf(address(strategy))); // Throw away 0.1% of value to sim losses
+        staker.withdrawLocked(stakes[0].kek_id);
+        want.transfer(address(777), want.balanceOf(address(strategy))/ 1000); // Throw away 0.1% of value to sim losses
         vm_std_cheats.stopPrank();
 
-        vm_std_cheats.deal(stabilityPool, 40 ether);
-        vm_std_cheats.deal(address(strategy), .1 ether);
+        tip(address(VSTA), address(strategy), 100 ether);
 
         skip(3 * ONE_MINUTE);
         strategy.harvest();
@@ -222,7 +149,7 @@ contract StrategyOperationsTest is StrategyFixture {
         skip(1);
         strategy.harvest();
         assertRelApproxEq(strategy.estimatedTotalAssets(), _amount, ONE_BIP_REL_DELTA);
-
+        skip(toSkip);
         vault.updateStrategyDebtRatio(address(strategy), 5_000);
         skip(1);
         strategy.harvest();
@@ -284,31 +211,26 @@ contract StrategyOperationsTest is StrategyFixture {
         skip(3 * ONE_MINUTE);
         strategy.harvest();
         assertRelApproxEq(strategy.estimatedTotalAssets(), _amount, ONE_BIP_REL_DELTA); 
-        assertEq(address(strategy).balance, 0);
+        assertEq(FXS.balanceOf(address(strategy)), 0);
         assertEq(VSTA.balanceOf(address(strategy)), 0);
 
-        vm_std_cheats.deal(stabilityPool, 1 ether);
-        vm_std_cheats.deal(address(strategy), 1 ether);
-        //vm_std_cheats.prank(0xC9032419AA502fAFA107775DCa8b7d07575d9DB5); //Vest Multisig
-        //VSTA.transfer(bProtocolPool, 10 ether);
-
-        skip(30 * ONE_MINUTE);
+        skip(2 * toSkip);
         uint256 _amountToWithdraw = vault.balanceOf(user) / 2;
         vm_std_cheats.prank(user);
         vault.withdraw(_amountToWithdraw); // This should call liquidatePosition, which will get some ETH into the strat
 
-        assertGt(address(strategy).balance, 0);
+        assertGt(FXS.balanceOf(address(strategy)), 0);
         assertGt(VSTA.balanceOf(address(strategy)), 0);
 
         skip(3 * ONE_MINUTE);
         strategy.harvest();
-        assertEq(address(strategy).balance, 0);
-        assertEq(VSTA.balanceOf(address(strategy)), 0);
+        assertEq(FXS.balanceOf(address(strategy)), 0);
+        assertLe(VSTA.balanceOf(address(strategy)), strategy.minVsta());
   
         uint256 profit = want.balanceOf(address(vault));
         assertGt(profit, 0);
 
-        skip(3600 * 6);
+        skip(toSkip);
 
         vm_std_cheats.prank(user);
         vault.withdraw();
@@ -329,22 +251,69 @@ contract StrategyOperationsTest is StrategyFixture {
 
         uint256 beforePps = vault.pricePerShare();
 
-        tip(address(VSTA), address(strategy), _amount / 1000); // 1 LQTY airdrop for every 1000 LUSD in strat
-
+        tip(address(VSTA), address(strategy), 1e17); // 1 LQTY airdrop for every 1000 LUSD in strat
+        tip(address(FXS), address(strategy), 1e14);
         // Harvest 2: Realize profit
         skip(1);
         strategy.harvest();
 
         skip(3600 * 6);
 
-        mockChainlink();
-
         uint256 profit = want.balanceOf(address(vault));
         assertGt(strategy.estimatedTotalAssets() + profit, _amount);
         assertGt(vault.pricePerShare(), beforePps);
-
+        assertEq(VSTA.balanceOf(address(strategy)), 0);
+        assertEq(FXS.balanceOf(address(strategy)), 0);
+        skip(toSkip);
         vm_std_cheats.prank(user);
         vault.withdraw();
         assertGt(want.balanceOf(user), balanceBefore);
+    }
+
+    //Assure we are still earning rewards after the lock period is up
+    function testStakingReturns(uint256 _amount) public {
+        vm_std_cheats.assume(_amount > 100 ether && _amount < 10_000 ether);
+
+        //uint256 balanceBefore = want.balanceOf(address(user));
+        depositToVault(user, vault, _amount);
+
+        // Harvest 1: Send funds through the strategy
+        skip(1);
+        strategy.harvest();
+        assertRelApproxEq(strategy.estimatedTotalAssets(), _amount, ONE_BIP_REL_DELTA);
+        skip(toSkip);
+
+        (uint256 fxsEarned, uint256 vstaEarned) = staker.earned(address(strategy));
+        assertGt(fxsEarned, 0);
+        assertGt(vstaEarned, 0);
+
+        skip(toSkip);
+
+        (uint256 fxsEarned2, uint256 vstaEarned2) = staker.earned(address(strategy));
+
+        assertGt(fxsEarned2, fxsEarned);
+        assertGt(vstaEarned2, vstaEarned);
+
+    }
+
+    function testLockPeriods(uint256 _amount) public {
+        vm_std_cheats.assume(_amount > 100 ether && _amount < 5_000 ether);
+
+        depositToVault(user, vault, _amount);
+
+        // Harvest 1: Send funds through the strategy
+        skip(1);
+        strategy.harvest();
+        assertRelApproxEq(strategy.estimatedTotalAssets(), _amount, ONE_BIP_REL_DELTA);
+        skip(toSkip);
+
+        depositToVault(user, vault, _amount);
+        assertRelApproxEq(strategy.stakedBalance(), _amount, ONE_BIP_REL_DELTA);
+        strategy.harvest();
+        uint256 balanceBefore = want.balanceOf(address(user));
+        vm_std_cheats.prank(user);
+        vault.withdraw(_amount);
+
+        assertRelApproxEq(want.balanceOf(address(user)), balanceBefore + _amount, ONE_BIP_REL_DELTA);
     }
 }

@@ -4,7 +4,7 @@ import "forge-std/console.sol";
 
 import {StrategyFixture} from "./utils/StrategyFixture.sol";
 
-import "../../interfaces/Chainlink/AggregatorV3Interface.sol";
+import "../interfaces/Chainlink/AggregatorV3Interface.sol";
 
 contract StrategyShutdownTest is StrategyFixture {
     function setUp() public override {
@@ -27,17 +27,13 @@ contract StrategyShutdownTest is StrategyFixture {
             want.transfer(address(123), bal);
         }
 
-        mockChainlink();
-
         // Harvest 1: Send funds through the strategy
         skip(3600 * 7);
         vm_std_cheats.roll(block.number + 1);
-        
-        
-
         strategy.harvest();
         assertRelApproxEq(strategy.estimatedTotalAssets(), _amount, ONE_BIP_REL_DELTA);
-
+        assertEq(want.balanceOf(address(strategy)), 0);
+        skip(toSkip);
         // Set Emergency
         vault.setEmergencyShutdown(true);
 
@@ -62,8 +58,6 @@ contract StrategyShutdownTest is StrategyFixture {
         vault.deposit(_amount);
         assertEq(want.balanceOf(address(vault)), _amount);
 
-        mockChainlink();
-
         // Harvest 1: Send funds through the strategy
         skip(1 days);
         vm_std_cheats.roll(block.number + 100);
@@ -82,7 +76,7 @@ contract StrategyShutdownTest is StrategyFixture {
         // Set emergency
         vm_std_cheats.prank(strategist);
         strategy.setEmergencyExit();
-
+        skip(toSkip);
         strategy.harvest(); // Remove funds from strategy
 
         assertEq(want.balanceOf(address(strategy)), 0);

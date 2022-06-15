@@ -5,7 +5,7 @@ import "forge-std/console.sol";
 import {StrategyFixture} from "./utils/StrategyFixture.sol";
 
 // NOTE: if the name of the strat or file changes this needs to be updated
-import {Str8Vesta} from "../../Str8Vesta.sol";
+import {CurveFraxVst} from "../CurveFraxVst.sol";
 
 contract StrategyMigrationTest is StrategyFixture {
     function setUp() public override {
@@ -30,7 +30,7 @@ contract StrategyMigrationTest is StrategyFixture {
         address newStrategyAddr = deployStrategy(address(vault));
         vault.migrateStrategy(address(strategy), newStrategyAddr);
         assertRelApproxEq(
-            Str8Vesta(payable(newStrategyAddr)).estimatedTotalAssets(),
+            CurveFraxVst(payable(newStrategyAddr)).estimatedTotalAssets(),
             _amount,
             ONE_BIP_REL_DELTA
         );

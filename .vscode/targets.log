@@ -7,9 +7,8 @@ make: *** No rule to make target 'all'.  Stop.
 # License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
 # This is free software: you are free to change and redistribute it.
 # There is NO WARRANTY, to the extent permitted by law.
- 
 
-# Make data base, printed on Mon Jun 13 15:17:10 2022
+# Make data base, printed on Wed Jun 15 09:45:30 2022
 
 # Variables
 
@@ -22,9 +21,9 @@ USERPROFILE = C:\Users\brad
 # environment
 LOCALAPPDATA = C:\Users\brad\AppData\Local
 # environment
-VSCODE_IPC_HOOK_EXTHOST = \\.\pipe\vscode-ipc-35c24a01-94f9-4dd4-8f82-87664afd6df9-sock
+VSCODE_IPC_HOOK_EXTHOST = \\.\pipe\vscode-ipc-025701a8-21e9-4e6f-acdf-1135eb428283-sock
 # environment
-VSCODE_CWD = C:\Users\brad\b-protocol-Vesta-strat
+VSCODE_CWD = C:\Users\brad\Vst-Frax-Staking
 # environment
 CHOCOLATEYINSTALL = C:\ProgramData\chocolatey
 # environment
@@ -45,8 +44,7 @@ VSCODE_HANDLES_UNCAUGHT_ERRORS = true
 .VARIABLES := 
 # automatic
 %D = $(patsubst %/,%,$(patsubst %\,%,$(dir $%)))
-# automat 
-ic
+# automatic
 ^D = $(patsubst %/,%,$(patsubst %\,%,$(dir $^)))
 # environment
 VSCODE_LOG_STACK = false
@@ -69,7 +67,7 @@ MAKEFLAGS = pqrR
 # environment
 ONEDRIVE = C:\Users\brad\OneDrive
 # makefile
-CURDIR := c:/Users/brad/b-protocol-Vesta-strat
+CURDIR := c:/Users/brad/Vst-Frax-Staking
 # environment
 VSCODE_PIPE_LOGGING = true
 # environment
@@ -86,8 +84,8 @@ MFLAGS = -pqrR
 COMMONPROGRAMW6432 = C:\Program Files\Common Files
 # automatic
 +D = $(patsubst %/,%,$(patsubst %\,%,$(dir $+)))
-# makefile (from '.env', line 1)
-MAKEFILE_LIST := Makefile .env
+# makefile (from 'Makefile', line 1)
+MAKEFILE_LIST := Makefile
 # automatic
 @F = $(notdir $@)
 # environment
@@ -166,8 +164,6 @@ GNUMAKEFLAGS :=
 OS = Windows_NT
 # makefile
 .DEFAULT_GOAL := update
-# makefile (from '.env', line 1)
-ETH_RPC_URL = https://arb1.arbitrum.io/rpc
 # default
 MAKE_VERSION := 4.3
 # environment
@@ -211,8 +207,7 @@ VSCODE_CLI = 1
 # environment
 ELECTRON_NO_ATTACH_CONSOLE = 1
 # default
-.FEATURES := target-specific order-only second-expansion else-if shortest-stem undefine oneshell nocomment grouped-ta 
-rget extra-prereqs archives jobserver output-sync load
+.FEATURES := target-specific order-only second-expansion else-if shortest-stem undefine oneshell nocomment grouped-target extra-prereqs archives jobserver output-sync load
 # environment
 REGIONCODE = NA
 # environment
@@ -220,7 +215,7 @@ PROCESSOR_REVISION = 8c01
 # environment
 PROCESSOR_IDENTIFIER = Intel64 Family 6 Model 140 Stepping 1, GenuineIntel
 # variable set hash-table stats:
-# Load=102/1024=10%, Rehash=0, Collisions=10/131=8%
+# Load=101/1024=10%, Rehash=0, Collisions=10/128=8%
 
 # Pattern-specific Variable Values
 
@@ -228,10 +223,9 @@ PROCESSOR_IDENTIFIER = Intel64 Family 6 Model 140 Stepping 1, GenuineIntel
 
 # Directories
 
-# . (key c:/Users/brad/b-protocol-Vesta-strat, mtime 1654802726): 22 files, no impossibilities.
+# . (key c:/Users/brad/Vst-Frax-Staking, mtime 1655307852): 19 files, no impossibilities.
 
-# 22 files, no impossibi 
-lities in 1 directories.
+# 19 files, no impossibilities in 1 directories.
 
 # Implicit Rules
 
@@ -243,7 +237,7 @@ snapshot:
 #  Implicit rule search has not been done.
 #  Modification time never checked.
 #  File has not been updated.
-#  recipe to execute (from 'Makefile', line 16):
+#  recipe to execute (from 'Makefile', line 17):
 	 forge snapshot
 
 update:
@@ -256,14 +250,14 @@ update:
 # Not a target:
 .env:
 #  Implicit rule search has been done.
-#  Last modified 2022-06-09 13:26:07
+#  File does not exist.
 #  File has been updated.
-#  Successfully updated.
+#  Failed to be updated.
 
 # Not a target:
 Makefile:
 #  Implicit rule search has been done.
-#  Last modified 2022-06-08 19:00:34
+#  Last modified 2022-06-15 09:44:12
 #  File has been updated.
 #  Successfully updated.
 
@@ -271,21 +265,28 @@ clean:
 #  Implicit rule search has not been done.
 #  Modification time never checked.
 #  File has not been updated.
-#  recipe to execute (from 'Makefile', line 15):
+#  recipe to execute (from 'Makefile', line 16):
 	 forge clean
+
+test-contract:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'Makefile', line 12):
+	 forge test -vv --fork-url ${ETH_RPC_URL} --match-contract $(contract)
 
 test-local:
 #  Implicit rule search has not been done.
 #  Modification time never checked.
 #  File has not been updated.
-#  recipe to execute (from 'Makefile', line 13):
+#  recipe to execute (from 'Makefile', line 14):
 	 forge test
 
 trace-local:
 #  Implicit rule search has not been done.
 #  Modification time never checked.
 #  File has not been updated.
-#  recipe to execute (from 'Makefile', line 14):
+#  recipe to execute (from 'Makefile', line 15):
 	 forge test -vvv
 
 # Not a target:
@@ -323,19 +324,19 @@ test:
 	 forge test -vv --fork-url ${ETH_RPC_URL}
 
 # files hash-table stats:
-# Load=13/1024=1%, Rehash=0, Collisions=0/24=0%
+# Load=14/1024=1%, Rehash=0, Collisions=0/25=0%
 # VPATH Search Paths
 
 # No 'vpath' search paths.
 
 # No general ('VPATH' variable) search path.
 
-# strcache buffers: 1 (0) / strings = 33 / storage = 272 B / avg = 8 B
-# current buf: size = 8174 B / used = 272 B / count = 33 / avg = 8 B
+# strcache buffers: 1 (0) / strings = 32 / storage = 276 B / avg = 8 B
+# current buf: size = 8174 B / used = 276 B / count = 32 / avg = 8 B
 
-# strcache performance: lookups = 47 / hit rate = 29%
+# strcache performance: lookups = 46 / hit rate = 30%
 # hash-table stats:
-# Load=33/8192=0%, Rehash=0, Collisions=0/47=0%
-# Finished Make data base on Mon Jun 13 15:17:10 2022
+# Load=32/8192=0%, Rehash=0, Collisions=0/46=0%
+# Finished Make data base on Wed Jun 15 09:45:30 2022
 
  
