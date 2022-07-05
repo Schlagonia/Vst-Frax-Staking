@@ -25,6 +25,7 @@ contract StrategyMigrationTest is StrategyFixture {
         assertEq(want.balanceOf(address(strategy)), 0);
         assertRelApproxEq(strategy.estimatedTotalAssets(), _amount, ONE_BIP_REL_DELTA);
         skip(1 days);
+        skip(1);
         // Migrate to a new strategy
         vm_std_cheats.prank(strategist);
         address newStrategyAddr = deployStrategy(address(vault));

@@ -13,7 +13,7 @@ import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {IERC20Extended} from "./interfaces/IERC20Extended.sol";
 
 import { ICurveFi } from "./interfaces/Curve/ICurveFi.sol";
-import {IBalancerVault} from "./interfaces/Balancer/IBalancerVault.sol";
+import { IBalancerVault } from "./interfaces/Balancer/IBalancerVault.sol";
 import { IBalancerPool } from "./interfaces/Balancer/IBalancerPool.sol";
 import { IAsset } from "./interfaces/Balancer/IAsset.sol";
 import { IUniswapV2Router02 } from "./interfaces/Uni/IUniswapV2Router02.sol";
@@ -56,23 +56,31 @@ contract CurveFraxVst is BaseStrategy {
     //needed for swaps not to fail
     uint256 public minVsta = 1e15;
 
-    //Frax addresses and variables for staking
+    //Frax addresses and variables for staking and swapping
     IStaker public constant staker =
         IStaker(0x127963A74c07f72D862F2Bdc225226c3251BD117);
     IUniswapV2Router02 public constant fraxRouter =
         IUniswapV2Router02(0xc2544A32872A91F4A553b404C6950e89De901fdb);
+    //FXS/FRAX pool address used for harvest Trigger calculations
+    address private constant fraxPair =
+        address(0x053B92fFA8a15b7db203ab66Bbd5866362013566);
     //Need for staking. Locks the tokens for the minumum amount of time.
     uint256 public minLockTime; 
 
     //Curve pool and indexs
     ICurveFi internal constant curvePool =
         ICurveFi(0x59bF0545FCa0E5Ad48E13DA269faCD2E8C886Ba4);
-    
     uint256 internal constant vstIndex = 0;
     uint256 internal constant fraxIndex = 1;
 
     uint256 public lastDeposit = 0;
     uint256 public lastDepositAmount;
+
+    //Keeper stuff
+    uint256 public maxBaseFee;
+    bool public forceHarvestTriggerOnce = false;
+    uint256 public harvestProfitMax;
+    uint256 public harvestProfitMin;
 
     uint256 private immutable wantDecimals;
     uint256 private immutable minWant;
@@ -81,12 +89,17 @@ contract CurveFraxVst is BaseStrategy {
     constructor(address _vault) BaseStrategy(_vault) {
         require(staker.stakingToken() == want, "Wrong want for staker");
 
+        //Set Balancer Pool Ids
         vstaPoolId = IBalancerPool(vstaPool).getPoolId();
         wethUsdcPoolId = IBalancerPool(wethUsdcPool).getPoolId();
         usdcVstPoolId = IBalancerPool(usdcVstPool).getPoolId();
 
-        wantDecimals = IERC20Extended(address(want)).decimals();
+        //Set initial Keeper stuff
+        maxBaseFee = 10e9;
+        harvestProfitMax = type(uint256).max;
+        harvestProfitMin = 0;
 
+        wantDecimals = IERC20Extended(address(want)).decimals();
         minWant = 10 ** (wantDecimals - 3);
         maxSingleInvest = 10 ** (wantDecimals + 6);
 
@@ -183,6 +196,8 @@ contract CurveFraxVst is BaseStrategy {
             }
             _debtPayment = Math.min(wantBalance, _debtOutstanding);
         }
+
+        forceHarvestTriggerOnce = false;
     }
 
     function adjustPosition(uint256 _debtOutstanding) internal override {
@@ -226,7 +241,7 @@ contract CurveFraxVst is BaseStrategy {
             needed = _amountNeeded - _liquidWant;
         } 
    
-        //Need to check that their is enough liquidity to withdraw so we dont report loss
+        //Need to check that their is enough liquidity to withdraw so we dont report loss thats not true
         if(lastDeposit + minLockTime > block.timestamp) {
             require(stakedBalance() - lastDepositAmount >= needed, "Need to wait till most recent deposit unlocks");
         }
@@ -261,8 +276,10 @@ contract CurveFraxVst is BaseStrategy {
 
         uint256 i = 0;
         uint256 needed = _amount;
-        while(needed > 0 && i < stakes.length) {
-            IStaker.LockedStake memory stake = stakes[i];
+        uint256 length = stakes.length;
+        IStaker.LockedStake memory stake;
+        while(needed > 0 && i < length) {
+            stake = stakes[i];
             uint256 liquidity = stake.amount;
          
             if(liquidity > 0 && stake.ending_timestamp <= block.timestamp) {
@@ -296,10 +313,15 @@ contract CurveFraxVst is BaseStrategy {
 
     function swapFxsToFrax() internal {
         uint256 fxsBal = FXS.balanceOf(address(this));
+
         if(fxsBal == 0) return;
 
         ///Swap to FRAX
-        _checkAllowance(address(fraxRouter), address(FXS), fxsBal);
+        _checkAllowance(
+            address(fraxRouter), 
+            address(FXS), 
+            fxsBal
+        );
 
         address[] memory path = new address[](2);
         path[0] = address(FXS);
@@ -443,12 +465,11 @@ contract CurveFraxVst is BaseStrategy {
     // Would then have to be called again after locked period has expired
     function liquidateAllPositions() internal override returns (uint256) {
         withdrawSome(type(uint256).max);
-        harvester();
         return balanceOfWant();
     }
 
     function prepareMigration(address _newStrategy) internal override {
-        require(lastDeposit + minLockTime <= block.timestamp, "Lastest deposit is not avialable yet for withdraw");
+        require(lastDeposit + minLockTime < block.timestamp, "Lastest deposit is not avialable yet for withdraw");
         withdrawSome(type(uint256).max);
     
         uint256 fxsBal = FXS.balanceOf(address(this));
@@ -499,6 +520,91 @@ contract CurveFraxVst is BaseStrategy {
     {
         // TODO create an accurate price oracle
         return _amtInWei;
+    }
+
+    /* ========== KEEP3RS ========== */
+    // use this to determine when to harvest automagically
+    function harvestTrigger(uint256 /*callCostinEth*/)
+        public
+        view
+        override
+        returns (bool)
+    {
+        // Should not trigger if strategy is not active (no assets and no debtRatio). This means we don't need to adjust keeper job.
+        if (!isActive()) {
+            return false;
+        }
+
+        // harvest if we have a profit to claim at our upper limit without considering gas price
+        uint256 claimableProfit = getClaimableProfit();
+        if (claimableProfit > harvestProfitMax) {
+            return true;
+        }
+
+        // check if the base fee gas price is higher than we allow. if it is, block harvests.
+        if (getBaseFee() > maxBaseFee) {
+            return false;
+        }
+
+        // trigger if we want to manually harvest, but only if our gas price is acceptable
+        if (forceHarvestTriggerOnce) {
+            return true;
+        }
+
+        // harvest if we have a sufficient profit to claim, but only if our gas price is acceptable
+        if (claimableProfit > harvestProfitMin) {
+            return true;
+        }
+
+        // otherwise, we don't harvest
+        return false;
+    }
+
+    //Returns the estimated claimable profit in want. 
+    function getClaimableProfit() public view returns (uint256 _claimableProfit) {
+        uint256 assets = estimatedTotalAssets();
+        uint256 debt = vault.strategies(address(this)).totalDebt;
+
+        //Only use the Frax rewards
+        (uint256 fxsEarned, ) = staker.earned(address(this));
+
+        uint256 estimatdRewards = 0;
+        if(fxsEarned > 0 ) {
+            
+            uint256 fxsToFrax = fraxRouter.getAmountOut(
+                fxsEarned, 
+                FXS.balanceOf(fraxPair), 
+                FRAX.balanceOf(fraxPair)
+            );
+        
+            uint256[2] memory amounts;
+            amounts[fraxIndex] = fxsToFrax;
+            amounts[vstIndex] = 0;
+
+            estimatdRewards = curvePool.calc_token_amount(amounts, true);
+        }
+
+        assets += estimatdRewards;
+        _claimableProfit = assets > debt ? assets - debt : 0;
+    }
+
+    function setKeeperStuff(uint256 _maxBaseFee, uint256 _harvestProfitMax, uint256 _harvestProfitMin) external onlyGovernance {
+        require(_maxBaseFee > 0, "Cant be 0");
+        maxBaseFee = _maxBaseFee;
+        harvestProfitMax = _harvestProfitMax;
+        harvestProfitMin = _harvestProfitMin;
+    }
+
+    // This allows us to manually harvest with our keeper as needed
+    function setForceHarvestTriggerOnce(bool _forceHarvestTriggerOnce)
+        external
+        onlyAuthorized
+    {
+        forceHarvestTriggerOnce = _forceHarvestTriggerOnce;
+    }
+
+    function getBaseFee() public view returns (uint256) {
+        return block.basefee;
     }
 
 }

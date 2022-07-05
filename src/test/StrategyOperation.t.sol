@@ -5,6 +5,7 @@ import "forge-std/console.sol";
 import {StrategyFixture} from "./utils/StrategyFixture.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IStaker } from "../interfaces/Frax/IStaker.sol";
+import {StrategyParams} from "../interfaces/Vault.sol";
 
 import {StrategyParams, IVault} from "../interfaces/Vault.sol";
 
@@ -316,4 +317,41 @@ contract StrategyOperationsTest is StrategyFixture {
 
         assertRelApproxEq(want.balanceOf(address(user)), balanceBefore + _amount, ONE_BIP_REL_DELTA);
     }
+
+    function testProfitableHarvestOnDebtChange(uint256 _amount) public {
+        vm_std_cheats.assume(_amount > 100 ether && _amount < 10_000 ether);
+        depositToVault(user, vault, _amount);
+
+        assertRelApproxEq(want.balanceOf(address(vault)), _amount, ONE_BIP_REL_DELTA);
+
+        uint256 beforePps = vault.pricePerShare();
+
+        // Harvest 1: Send funds through the strategy
+        skip(1);
+        vm_std_cheats.prank(strategist);
+        strategy.harvest();
+        assertRelApproxEq(strategy.estimatedTotalAssets(), _amount, ONE_BIP_REL_DELTA);
+
+        // TODO: Add some code before harvest #2 to simulate earning yield
+        tip(address(FXS), address(strategy), 10 ether);
+        skip(toSkip);
+        vault.updateStrategyDebtRatio(address(strategy), 5_000);
+        console.log("Got here");
+        // Harvest 2: Realize profit
+        skip(1);
+        vm_std_cheats.prank(strategist);
+        strategy.harvest();
+        //Make sure we have updated the debt ratio of the strategy
+        assertRelApproxEq(strategy.estimatedTotalAssets(), _amount / 2, ONE_BIP_REL_DELTA);
+        skip(6 hours);
+
+        // Make sure we have updated the debt and made a profit
+        uint256 vaultBalance = want.balanceOf(address(vault));
+        StrategyParams memory params = vault.strategies(address(strategy));
+        console.log("Vault balance ", vaultBalance, "Params gain ", params.totalGain);
+        //Make sure we got back profit + half the deposit
+        assertRelApproxEq(_amount / 2 + params.totalGain, vaultBalance, ONE_BIP_REL_DELTA);
+        assertGt(vault.pricePerShare(), beforePps);
+    }
+    
 }

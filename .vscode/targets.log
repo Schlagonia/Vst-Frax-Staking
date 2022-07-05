@@ -8,7 +8,7 @@ make: *** No rule to make target 'all'.  Stop.
 # This is free software: you are free to change and redistribute it.
 # There is NO WARRANTY, to the extent permitted by law.
 
-# Make data base, printed on Wed Jun 15 09:45:30 2022
+# Make data base, printed on Thu Jun 30 16:56:52 2022
 
 # Variables
 
@@ -21,7 +21,9 @@ USERPROFILE = C:\Users\brad
 # environment
 LOCALAPPDATA = C:\Users\brad\AppData\Local
 # environment
-VSCODE_IPC_HOOK_EXTHOST = \\.\pipe\vscode-ipc-025701a8-21e9-4e6f-acdf-1135eb428283-sock
+VSCODE_IPC_HOOK_EXTHOST = \\.\pipe\vscode-ipc-514552ea-f89d-4478-8c21-8a4af6437fab-sock
+# environment
+WSLENV = WT_SESSION::WT_PROFILE_ID
 # environment
 VSCODE_CWD = C:\Users\brad\Vst-Frax-Staking
 # environment
@@ -31,13 +33,13 @@ SYSTEMROOT = C:\windows
 # environment
 PROCESSOR_LEVEL = 6
 # environment
-PSMODULEPATH = C:\Program Files\WindowsPowerShell\Modules;C:\windows\system32\WindowsPowerShell\v1.0\Modules
+PSMODULEPATH = C:\Users\brad\OneDrive\Documents\PowerShell\Modules;C:\Program Files\PowerShell\Modules;c:\program files\powershell\7\Modules;C:\Program Files\WindowsPowerShell\Modules;C:\windows\system32\WindowsPowerShell\v1.0\Modules
 # default
 MAKE_COMMAND := C:/ProgramData/chocolatey/lib/make/tools/install/bin/make.exe
 # automatic
 @D = $(patsubst %/,%,$(patsubst %\,%,$(dir $@)))
 # environment
-CHROME_CRASHPAD_PIPE_NAME = \\.\pipe\crashpad_36044_AQOKBZOKKUTICTCJ
+CHROME_CRASHPAD_PIPE_NAME = \\.\pipe\crashpad_3672_OZVWZVMJDHTYEXAP
 # environment
 VSCODE_HANDLES_UNCAUGHT_ERRORS = true
 # default
@@ -51,7 +53,7 @@ VSCODE_LOG_STACK = false
 # automatic
 %F = $(notdir $%)
 # environment
-VSCODE_CODE_CACHE_PATH = C:\Users\brad\AppData\Roaming\Code\CachedData\4af164ea3a06f701fe3e89a2bcbb421d2026b68f
+VSCODE_CODE_CACHE_PATH = C:\Users\brad\AppData\Roaming\Code\CachedData\30d9c6cd9483b2cc586687151bcbcd635f373630
 # environment
 LANG = C
 # default
@@ -66,6 +68,8 @@ PROCESSOR_ARCHITEW6432 = AMD64
 MAKEFLAGS = pqrR
 # environment
 ONEDRIVE = C:\Users\brad\OneDrive
+# environment
+POWERSHELL_DISTRIBUTION_CHANNEL = MSI:Windows 10 Home
 # makefile
 CURDIR := c:/Users/brad/Vst-Frax-Staking
 # environment
@@ -84,18 +88,20 @@ MFLAGS = -pqrR
 COMMONPROGRAMW6432 = C:\Program Files\Common Files
 # automatic
 +D = $(patsubst %/,%,$(patsubst %\,%,$(dir $+)))
-# makefile (from 'Makefile', line 1)
-MAKEFILE_LIST := Makefile
+# makefile (from '.env', line 1)
+MAKEFILE_LIST := Makefile .env
 # automatic
 @F = $(notdir $@)
 # environment
 VSCODE_VERBOSE_LOGGING = true
 # environment
-VSCODE_PID = 36044
+VSCODE_PID = 3672
 # automatic
 ?D = $(patsubst %/,%,$(patsubst %\,%,$(dir $?)))
 # environment
 ONLINESERVICES = Online Services
+# environment
+WT_PROFILE_ID = {574e775e-4f2a-5b96-ac1e-a2962a402336}
 # automatic
 *F = $(notdir $*)
 # automatic
@@ -125,7 +131,7 @@ MAKELEVEL := 0
 # default
 MAKE = $(MAKE_COMMAND)
 # environment
-PATH = C:\Users\brad\AppData\Roaming\npm;C:\Program Files (x86)\nodejs\;C:\Python310\Scripts\;C:\Python310\;C:\windows\system32;C:\windows;C:\windows\System32\Wbem;C:\windows\System32\WindowsPowerShell\v1.0\;C:\windows\System32\OpenSSH\;C:\Program Files (x86)\nodejs\;C:\ProgramData\chocolatey\bin;C:\Program Files\Git\cmd;C:\Users\brad\foundry\target\release\cast;C:\Users\brad\foundry\target\release\forge;;C:\Program Files\Docker\Docker\resources\bin;C:\ProgramData\DockerDesktop\version-bin;C:\Users\brad\.cargo\bin;C:\Users\brad\AppData\Local\Microsoft\WindowsApps;C:\Users\brad\AppData\Local\Programs\Microsoft VS Code\bin;C:\Users\brad\AppData\Roaming\npm;c:\users\brad\appdata\roaming\python\python310\scripts;c:\users\brad\.local\bin;C:\Users\brad\foundry\target\release;
+PATH = C:\Program Files\PowerShell\7;C:\Python39\Scripts\;C:\Python39\;C:\windows\system32;C:\windows;C:\windows\System32\Wbem;C:\windows\System32\WindowsPowerShell\v1.0\;C:\windows\System32\OpenSSH\;C:\Program Files (x86)\nodejs\;C:\ProgramData\chocolatey\bin;C:\Users\brad\foundry\target\release\cast;C:\Users\brad\foundry\target\release\forge;C:\Program Files\Docker\Docker\resources\bin;C:\ProgramData\DockerDesktop\version-bin;C:\Program Files\PowerShell\7\;C:\Program Files\Git\cmd;C:\Users\brad\AppData\Local\Programs\Python\Python39\Scripts\;C:\Users\brad\AppData\Local\Programs\Python\Python39\;C:\Users\brad\.cargo\bin;C:\Users\brad\AppData\Local\Microsoft\WindowsApps;C:\Users\brad\AppData\Local\Programs\Microsoft VS Code\bin;C:\Users\brad\AppData\Roaming\npm;c:\users\brad\appdata\roaming\python\python310\scripts;c:\users\brad\.local\bin;C:\Users\brad\foundry\target\release
 # environment
 ZES_ENABLE_SYSMAN = 1
 # environment
@@ -139,6 +145,8 @@ PROMPT = $P$G
 # environment
 CHOCOLATEYLASTPATHUPDATE = 132882030946822542
 # environment
+WT_SESSION = 953ed245-baca-4a3b-a010-d09d5ea39c0d
+# environment
 LOGONSERVER = \\BRADLAPTOP
 # environment
 VSCODE_LOG_NATIVE = false
@@ -151,7 +159,7 @@ COMMONPROGRAMFILES = C:\Program Files (x86)\Common Files
 # environment
 PROGRAMW6432 = C:\Program Files
 # environment
-PATHEXT = .COM;.EXE;.BAT;.CMD;.VBS;.VBE;.JS;.JSE;.WSF;.WSH;.MSC;.PY;.PYW
+PATHEXT = .COM;.EXE;.BAT;.CMD;.VBS;.VBE;.JS;.JSE;.WSF;.WSH;.MSC;.PY;.PYW;.CPL
 # automatic
 +F = $(notdir $+)
 # environment
@@ -164,6 +172,8 @@ GNUMAKEFLAGS :=
 OS = Windows_NT
 # makefile
 .DEFAULT_GOAL := update
+# makefile (from '.env', line 1)
+ETH_RPC_URL = https://arb1.arbitrum.io/rpc
 # default
 MAKE_VERSION := 4.3
 # environment
@@ -191,7 +201,7 @@ ELECTRON_RUN_AS_NODE = 1
 # environment
 TEMP = C:\Users\brad\AppData\Local\Temp
 # environment
-VSCODE_IPC_HOOK = \\.\pipe\34a5f7c73c9498eeda7c1ce4952f1af8-1.68.0-main-sock
+VSCODE_IPC_HOOK = \\.\pipe\34a5f7c73c9498eeda7c1ce4952f1af8-1.68.1-main-sock
 # default
 .RECIPEPREFIX := 
 # automatic
@@ -200,8 +210,6 @@ VSCODE_IPC_HOOK = \\.\pipe\34a5f7c73c9498eeda7c1ce4952f1af8-1.68.0-main-sock
 SUFFIXES := 
 # environment
 ALLUSERSPROFILE = C:\ProgramData
-# environment
-SESSIONNAME = Console
 # environment
 VSCODE_CLI = 1
 # environment
@@ -215,7 +223,7 @@ PROCESSOR_REVISION = 8c01
 # environment
 PROCESSOR_IDENTIFIER = Intel64 Family 6 Model 140 Stepping 1, GenuineIntel
 # variable set hash-table stats:
-# Load=101/1024=10%, Rehash=0, Collisions=10/128=8%
+# Load=105/1024=10%, Rehash=0, Collisions=12/134=9%
 
 # Pattern-specific Variable Values
 
@@ -223,9 +231,9 @@ PROCESSOR_IDENTIFIER = Intel64 Family 6 Model 140 Stepping 1, GenuineIntel
 
 # Directories
 
-# . (key c:/Users/brad/Vst-Frax-Staking, mtime 1655307852): 19 files, no impossibilities.
+# . (key c:/Users/brad/Vst-Frax-Staking, mtime 1655308265): 22 files, no impossibilities.
 
-# 19 files, no impossibilities in 1 directories.
+# 22 files, no impossibilities in 1 directories.
 
 # Implicit Rules
 
@@ -250,9 +258,9 @@ update:
 # Not a target:
 .env:
 #  Implicit rule search has been done.
-#  File does not exist.
+#  Last modified 2022-06-15 09:47:57
 #  File has been updated.
-#  Failed to be updated.
+#  Successfully updated.
 
 # Not a target:
 Makefile:
@@ -292,6 +300,7 @@ trace-local:
 # Not a target:
 .DEFAULT:
 #  Implicit rule search has not been done.
+ 
 #  Modification time never checked.
 #  File has not been updated.
 
@@ -331,12 +340,12 @@ test:
 
 # No general ('VPATH' variable) search path.
 
-# strcache buffers: 1 (0) / strings = 32 / storage = 276 B / avg = 8 B
-# current buf: size = 8174 B / used = 276 B / count = 32 / avg = 8 B
+# strcache buffers: 1 (0) / strings = 34 / storage = 286 B / avg = 8 B
+# current buf: size = 8174 B / used = 286 B / count = 34 / avg = 8 B
 
-# strcache performance: lookups = 46 / hit rate = 30%
+# strcache performance: lookups = 49 / hit rate = 30%
 # hash-table stats:
-# Load=32/8192=0%, Rehash=0, Collisions=0/46=0%
-# Finished Make data base on Wed Jun 15 09:45:30 2022
+# Load=34/8192=0%, Rehash=0, Collisions=0/49=0%
+# Finished Make data base on Thu Jun 30 16:56:52 2022
 
  
