@@ -7,8 +7,9 @@ make: *** No rule to make target 'all'.  Stop.
 # License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
 # This is free software: you are free to change and redistribute it.
 # There is NO WARRANTY, to the extent permitted by law.
+ 
 
-# Make data base, printed on Thu Jun 30 16:56:52 2022
+# Make data base, printed on Tue Jul 05 12:27:57 2022
 
 # Variables
 
@@ -21,7 +22,7 @@ USERPROFILE = C:\Users\brad
 # environment
 LOCALAPPDATA = C:\Users\brad\AppData\Local
 # environment
-VSCODE_IPC_HOOK_EXTHOST = \\.\pipe\vscode-ipc-514552ea-f89d-4478-8c21-8a4af6437fab-sock
+VSCODE_IPC_HOOK_EXTHOST = \\.\pipe\vscode-ipc-c867073e-cb63-468f-a3a9-71caa1ffe430-sock
 # environment
 WSLENV = WT_SESSION::WT_PROFILE_ID
 # environment
@@ -39,7 +40,8 @@ MAKE_COMMAND := C:/ProgramData/chocolatey/lib/make/tools/install/bin/make.exe
 # automatic
 @D = $(patsubst %/,%,$(patsubst %\,%,$(dir $@)))
 # environment
-CHROME_CRASHPAD_PIPE_NAME = \\.\pipe\crashpad_3672_OZVWZVMJDHTYEXAP
+CHROME_CRASHPAD_PIPE_NAME = \\.\pipe\crashpad_3 
+4732_QWKMGIOWCYVRIAQI
 # environment
 VSCODE_HANDLES_UNCAUGHT_ERRORS = true
 # default
@@ -64,6 +66,8 @@ TMP = C:\Users\brad\AppData\Local\Temp
 .INCLUDE_DIRS = .
 # environment
 PROCESSOR_ARCHITEW6432 = AMD64
+# makefile (from '.env', line 2)
+PRIV_KEY = 
 # makefile
 MAKEFLAGS = pqrR
 # environment
@@ -95,7 +99,7 @@ MAKEFILE_LIST := Makefile .env
 # environment
 VSCODE_VERBOSE_LOGGING = true
 # environment
-VSCODE_PID = 3672
+VSCODE_PID = 34732
 # automatic
 ?D = $(patsubst %/,%,$(patsubst %\,%,$(dir $?)))
 # environment
@@ -126,6 +130,8 @@ DRIVERDATA = C:\Windows\System32\Drivers\DriverData
 COMSPEC = C:\windows\system32\cmd.exe
 # environment
 WINDIR = C:\windows
+# makefile (from '.env', line 3)
+ETHERSCAN_API_KEY = MB86XP27XRHD1VN1DIKSU676F9AA1DWP2E
 # environment
 MAKELEVEL := 0
 # default
@@ -145,7 +151,7 @@ PROMPT = $P$G
 # environment
 CHOCOLATEYLASTPATHUPDATE = 132882030946822542
 # environment
-WT_SESSION = 953ed245-baca-4a3b-a010-d09d5ea39c0d
+WT_SESSION = f776690e-7666-462e-9430-62cd10862fcb
 # environment
 LOGONSERVER = \\BRADLAPTOP
 # environment
@@ -215,7 +221,8 @@ VSCODE_CLI = 1
 # environment
 ELECTRON_NO_ATTACH_CONSOLE = 1
 # default
-.FEATURES := target-specific order-only second-expansion else-if shortest-stem undefine oneshell nocomment grouped-target extra-prereqs archives jobserver output-sync load
+.FEATURES := target-specific order-only second-expansio 
+n else-if shortest-stem undefine oneshell nocomment grouped-target extra-prereqs archives jobserver output-sync load
 # environment
 REGIONCODE = NA
 # environment
@@ -223,7 +230,7 @@ PROCESSOR_REVISION = 8c01
 # environment
 PROCESSOR_IDENTIFIER = Intel64 Family 6 Model 140 Stepping 1, GenuineIntel
 # variable set hash-table stats:
-# Load=105/1024=10%, Rehash=0, Collisions=12/134=9%
+# Load=107/1024=10%, Rehash=0, Collisions=13/136=10%
 
 # Pattern-specific Variable Values
 
@@ -231,7 +238,8 @@ PROCESSOR_IDENTIFIER = Intel64 Family 6 Model 140 Stepping 1, GenuineIntel
 
 # Directories
 
-# . (key c:/Users/brad/Vst-Frax-Staking, mtime 1655308265): 22 files, no impossibilities.
+# . (key c:/Users/brad/Vst-Frax-Staking, mtime 1655308265) 
+: 22 files, no impossibilities.
 
 # 22 files, no impossibilities in 1 directories.
 
@@ -245,8 +253,15 @@ snapshot:
 #  Implicit rule search has not been done.
 #  Modification time never checked.
 #  File has not been updated.
-#  recipe to execute (from 'Makefile', line 17):
+#  recipe to execute (from 'Makefile', line 18):
 	 forge snapshot
+
+deploy:
+#  Implicit rule search has not been done.
+#  Modification time never checked.
+#  File has not been updated.
+#  recipe to execute (from 'Makefile', line 13):
+	 forge create --rpc-url ${ETH_RPC_URL} --private-key ${PRIV_KEY} src/BaseFee.sol:BaseFee --etherscan-api-key ${ETHERSCAN_API_KEY} --verify
 
 update:
 #  Implicit rule search has not been done.
@@ -258,14 +273,14 @@ update:
 # Not a target:
 .env:
 #  Implicit rule search has been done.
-#  Last modified 2022-06-15 09:47:57
+#  Last modified 2022-07-05 11:55:36
 #  File has been updated.
 #  Successfully updated.
 
 # Not a target:
 Makefile:
 #  Implicit rule search has been done.
-#  Last modified 2022-06-15 09:44:12
+#  Last modified 2022-07-05 12:05:42
 #  File has been updated.
 #  Successfully updated.
 
@@ -273,7 +288,7 @@ clean:
 #  Implicit rule search has not been done.
 #  Modification time never checked.
 #  File has not been updated.
-#  recipe to execute (from 'Makefile', line 16):
+#  recipe to execute (from 'Makefile', line 17):
 	 forge clean
 
 test-contract:
@@ -287,20 +302,19 @@ test-local:
 #  Implicit rule search has not been done.
 #  Modification time never checked.
 #  File has not been updated.
-#  recipe to execute (from 'Makefile', line 14):
+#  recipe to execute (from 'Makefile', line 15):
 	 forge test
 
 trace-local:
 #  Implicit rule search has not been done.
 #  Modification time never checked.
 #  File has not been updated.
-#  recipe to execute (from 'Makefile', line 15):
+#  recipe to execute (from 'Makefile', line 16):
 	 forge test -vvv
 
 # Not a target:
 .DEFAULT:
 #  Implicit rule search has not been done.
- 
 #  Modification time never checked.
 #  File has not been updated.
 
@@ -333,19 +347,19 @@ test:
 	 forge test -vv --fork-url ${ETH_RPC_URL}
 
 # files hash-table stats:
-# Load=14/1024=1%, Rehash=0, Collisions=0/25=0%
+# Load=15/1024=1%, Rehash=0, Collisions=0/26=0%
 # VPATH Search Paths
 
 # No 'vpath' search paths.
 
 # No general ('VPATH' variable) search path.
 
-# strcache buffers: 1 (0) / strings = 34 / storage = 286 B / avg = 8 B
-# current buf: size = 8174 B / used = 286 B / count = 34 / avg = 8 B
+# strcache buffers: 1 (0) / strings = 35 / storage = 293 B / avg = 8 B
+# current buf: size = 8174 B / used = 293 B / count = 35 / avg = 8 B
 
-# strcache performance: lookups = 49 / hit rate = 30%
+# strcache performance: lookups = 51 / hit rate = 31%
 # hash-table stats:
-# Load=34/8192=0%, Rehash=0, Collisions=0/49=0%
-# Finished Make data base on Thu Jun 30 16:56:52 2022
+# Load=35/8192=0%, Rehash=0, Collisions=0/51=0%
+# Finished Make data base on Tue Jul 05 12:27:57 2022
 
  

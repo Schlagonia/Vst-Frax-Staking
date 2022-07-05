@@ -10,7 +10,7 @@ build  :; forge build
 test   :; forge test -vv --fork-url ${ETH_RPC_URL}
 trace   :; forge test -vvv --fork-url ${ETH_RPC_URL}
 test-contract :; forge test -vv --fork-url ${ETH_RPC_URL} --match-contract $(contract)
-deploy	:; forge create --rpc-url ${ETH_RPC_URL} --private-key ${PRIV_KEY} src/BaseFee.sol:BaseFee --etherscan-api-key ${ETHERSCAN_API_KEY} --verify
+deploy	:; forge create --rpc-url ${ETH_RPC_URL} --private-key ${PRIV_KEY} src/Strategy.sol:Strategy --etherscan-api-key ${ETHERSCAN_API_KEY} --verify
 # local tests without fork
 test-local  :; forge test
 trace-local  :; forge test -vvv
