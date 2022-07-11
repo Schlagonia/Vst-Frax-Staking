@@ -336,7 +336,7 @@ contract StrategyOperationsTest is StrategyFixture {
         tip(address(FXS), address(strategy), 10 ether);
         skip(toSkip);
         vault.updateStrategyDebtRatio(address(strategy), 5_000);
-        console.log("Got here");
+   
         // Harvest 2: Realize profit
         skip(1);
         vm_std_cheats.prank(strategist);

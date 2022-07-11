@@ -101,7 +101,7 @@ contract CurveFraxVst is BaseStrategy {
 
         wantDecimals = IERC20Extended(address(want)).decimals();
         minWant = 10 ** (wantDecimals - 3);
-        maxSingleInvest = 10 ** (wantDecimals + 6);
+        maxSingleInvest = 10 ** (wantDecimals + 7);
 
         minLockTime = staker.lock_time_min();
 
@@ -169,13 +169,13 @@ contract CurveFraxVst is BaseStrategy {
                 needed = _profit + _debtOutstanding;
             }
             if (needed > wantBalance) {
-                //Only gets called on harvest which should be more that oneDay apart so we dont need to check liquidity
+                //Only gets called on harvest, which should be more that oneDay since last deposit so we should be liquid
                 withdrawSome(needed - wantBalance);
 
                 wantBalance = want.balanceOf(address(this));
 
                 if (wantBalance < needed) {
-                    if (_profit >= wantBalance) {
+                    if (_profit < wantBalance) {
                         _profit = wantBalance;
                         _debtPayment = 0;
                     } else {
@@ -209,7 +209,7 @@ contract CurveFraxVst is BaseStrategy {
         uint256 _wantBal = balanceOfWant();
         if (_wantBal < _debtOutstanding) {
 
-            //Only gets called on harvest which should be more that oneDay apart so we dont need to check liquidity
+            //Only gets called on harvest which should be more that oneDay apart so we should be liquid
             withdrawSome(_debtOutstanding - _wantBal);
             _wantBal = balanceOfWant();
             
@@ -278,9 +278,10 @@ contract CurveFraxVst is BaseStrategy {
         uint256 needed = _amount;
         uint256 length = stakes.length;
         IStaker.LockedStake memory stake;
+        uint256 liquidity;
         while(needed > 0 && i < length) {
             stake = stakes[i];
-            uint256 liquidity = stake.amount;
+            liquidity = stake.amount;
          
             if(liquidity > 0 && stake.ending_timestamp <= block.timestamp) {
       
@@ -588,7 +589,11 @@ contract CurveFraxVst is BaseStrategy {
         _claimableProfit = assets > debt ? assets - debt : 0;
     }
 
-    function setKeeperStuff(uint256 _maxBaseFee, uint256 _harvestProfitMax, uint256 _harvestProfitMin) external onlyGovernance {
+    function setKeeperStuff(
+        uint256 _maxBaseFee, 
+        uint256 _harvestProfitMax, 
+        uint256 _harvestProfitMin
+    ) external onlyGovernance {
         require(_maxBaseFee > 0, "Cant be 0");
         maxBaseFee = _maxBaseFee;
         harvestProfitMax = _harvestProfitMax;
