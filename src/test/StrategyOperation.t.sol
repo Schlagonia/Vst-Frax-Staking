@@ -226,7 +226,7 @@ contract StrategyOperationsTest is StrategyFixture {
         skip(3 * ONE_MINUTE);
         strategy.harvest();
         assertEq(FXS.balanceOf(address(strategy)), 0);
-        assertLe(VSTA.balanceOf(address(strategy)), strategy.minVsta());
+        assertLe(VSTA.balanceOf(address(strategy)), 1e15);
   
         uint256 profit = want.balanceOf(address(vault));
         assertGt(profit, 0);

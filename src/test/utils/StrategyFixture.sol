@@ -128,7 +128,7 @@ contract StrategyFixture is ExtendedDSTest, stdCheats {
     // Deploys a strategy
     function deployStrategy(address _vault) public returns (address) {
         CurveFraxVst _strategy = new CurveFraxVst(_vault);
-        toSkip = _strategy.minLockTime() + 1;
+        toSkip = _strategy.lockTime() + 1;
         return address(_strategy);
     }
 
