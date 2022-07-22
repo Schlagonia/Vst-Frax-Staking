@@ -95,7 +95,7 @@ contract CurveFraxVst is BaseStrategy {
         //Set initial Keeper stuff
         maxBaseFee = 10e9;
         harvestProfitMax = type(uint256).max;
-        harvestProfitMin = 1_000e18;
+        harvestProfitMin = 100e18;
 
         uint256 wantDecimals = IERC20Extended(address(want)).decimals();
         minWant = 10 ** (wantDecimals - 3);
