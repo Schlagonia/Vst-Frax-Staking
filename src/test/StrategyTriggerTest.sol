@@ -37,6 +37,11 @@ contract StrategyTriggerTest is StrategyFixture {
         
         console.log("Base Fee ", strategy.getBaseFee());
         console.log("Claimable Profit ", strategy.getClaimableProfit());
+        strategy.setKeeperStuff(
+            strategy.maxBaseFee(),
+            strategy.harvestProfitMax(),
+            1
+        );
         //min harvest 0 so any interest earned will make it true
         assertTrue(strategy.harvestTrigger(1), "Min harvest not triggereed");
 

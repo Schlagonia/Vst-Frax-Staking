@@ -50,26 +50,29 @@ contract CurveFraxVst is BaseStrategy {
     bytes32 public immutable wethUsdcPoolId;
     bytes32 public immutable usdcVstPoolId;
 
-    //Frax addresses and variables for staking and swapping
+    //Frax addresses and variables for staking
     IStaker public constant staker =
         IStaker(0x127963A74c07f72D862F2Bdc225226c3251BD117);
+    //This IS the time the tokens are locked for when staked
+    //Inititally set to the min time, 24hours, can be updated later if desired
+    uint256 public lockTime = 86400; 
+    //This is the max amount of Keks, we will allow the strat to have open to limit withdraw loops
+    uint256 public maxKeks = 5;
+    //The index of the newest kek for deposit/withdraw tracking
+    uint256 public newestKek;
+
+    //Router to use for FXS -> FRAX swaps
     IUniswapV2Router02 public constant fraxRouter =
         IUniswapV2Router02(0xc2544A32872A91F4A553b404C6950e89De901fdb);
     //FXS/FRAX pool address used for harvest Trigger calculations
     address internal constant fraxPair =
         0x053B92fFA8a15b7db203ab66Bbd5866362013566;
 
-    //This IS the time the tokens are locked for when staked
-    //Inititally set to the min time, 24hours, can be updated later if desired
-    uint256 public lockTime = 86400; 
-
     //Curve pool and indexs
     ICurveFi internal constant curvePool =
         ICurveFi(0x59bF0545FCa0E5Ad48E13DA269faCD2E8C886Ba4);
-    uint256 internal constant vstIndex = 0;
-    uint256 internal constant fraxIndex = 1;
 
-    uint256 public lastDeposit = 0;
+    uint256 public lastDeposit;
     uint256 public lastDepositAmount;
 
     //Keeper stuff
@@ -92,7 +95,7 @@ contract CurveFraxVst is BaseStrategy {
         //Set initial Keeper stuff
         maxBaseFee = 10e9;
         harvestProfitMax = type(uint256).max;
-        harvestProfitMin = 0;
+        harvestProfitMin = 1_000e18;
 
         uint256 wantDecimals = IERC20Extended(address(want)).decimals();
         minWant = 10 ** (wantDecimals - 3);
@@ -114,7 +117,6 @@ contract CurveFraxVst is BaseStrategy {
     // ******** OVERRIDE THESE METHODS FROM BASE CONTRACT ************
 
     function name() external pure override returns (string memory) {
-        // Add your own name here, suggestion e.g. "StrategyCreamYFI"
         return "VstFraxStaker";
     }
 
@@ -243,9 +245,26 @@ contract CurveFraxVst is BaseStrategy {
     function depositSome(uint256 _amount) internal {
         if(_amount < minWant) return;
 
+        //If we have already locked the max amount of keks, we need to withdraw the oldest one
+        //And reinvest that along side the new funds
+        if(newestKek >= maxKeks) {
+            //Get the oldest kek that could have funds in it
+            IStaker.LockedStake memory stake = staker.lockedStakesOf(address(this))[newestKek - maxKeks];
+            //Make sure it hasnt already been withdrawn
+            if(stake.amount > 0){
+                //Withdraw funds and add them to the amount to deposit
+                staker.withdrawLocked(stake.kek_id);
+                unchecked {
+                    _amount += stake.amount;
+                }
+            } 
+        }
+
         staker.stakeLocked(_amount, lockTime);
+
         lastDeposit = block.timestamp;
         lastDepositAmount = _amount;
+        newestKek ++;
     }
 
     function withdrawSome(uint256 _amount) internal {
@@ -253,12 +272,11 @@ contract CurveFraxVst is BaseStrategy {
 
         IStaker.LockedStake[] memory stakes = staker.lockedStakesOf(address(this));
 
-        uint256 i;
+        uint256 i = newestKek > maxKeks ? newestKek - maxKeks : 0;
         uint256 needed = _amount;
-        uint256 length = stakes.length;
         IStaker.LockedStake memory stake;
         uint256 liquidity;
-        while(needed > 0 && i < length) {
+        while(needed > 0 && i < newestKek) {
             stake = stakes[i];
             liquidity = stake.amount;
          
@@ -540,6 +558,10 @@ contract CurveFraxVst is BaseStrategy {
     function setLockTime(uint256 _lockTime) external onlyVaultManagers {
         require(_lockTime >= staker.lock_time_min(), "To low");
         lockTime = _lockTime;
+    }
+
+    function setMaxKeks(uint256 _maxKeks) external onlyVaultManagers {
+        maxKeks = _maxKeks;
     }
 
     function setKeeperStuff(
