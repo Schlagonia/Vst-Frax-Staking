@@ -87,11 +87,6 @@ contract StrategyFixture is ExtendedDSTest, stdCheats {
         vm_std_cheats.label(address(WETH), "WETH");
         vm_std_cheats.label(address(want), "Want");
         vm_std_cheats.label(address(VSTA), "VSTA");
-        //vm_std_cheats.label(address(0x5f4eC3Df9cbd43714FE2740f5E3616155c5b8419), "ChainlinkETHUSD");
-        //vm_std_cheats.label(address(0x66017D22b0f8556afDd19FC67041899Eb65a21bb), "Liquity");
-        //vm_std_cheats.label(address(0xEd279fDD11cA84bEef15AF5D39BB4d4bEE23F0cA), "CurvePool");
-        //vm_std_cheats.label(address(0xE592427A0AEce92De3Edee1F18E0157C05861564), "Uniswap");
-        //vault.setDepositLimit(type(uint256).max);
         tip(address(want), address(user), 100_000 ether);
         vm_std_cheats.deal(user, 10_000 ether);
 
