@@ -34,11 +34,9 @@ contract StrategyTriggerTest is StrategyFixture {
         assertEq(want.balanceOf(address(strategy)), 0);
         
         skip(toSkip);
-        
-        console.log("Base Fee ", strategy.getBaseFee());
+    
         console.log("Claimable Profit ", strategy.getClaimableProfit());
         strategy.setKeeperStuff(
-            strategy.maxBaseFee(),
             strategy.harvestProfitMax(),
             1
         );
@@ -46,7 +44,6 @@ contract StrategyTriggerTest is StrategyFixture {
         assertTrue(strategy.harvestTrigger(1), "Min harvest not triggereed");
 
         strategy.setKeeperStuff(
-            strategy.maxBaseFee(),
             strategy.harvestProfitMax(),
             type(uint256).max
         );
@@ -62,7 +59,6 @@ contract StrategyTriggerTest is StrategyFixture {
         //Tip and set max profit
         tip(address(FXS), address(strategy), 10 ether);
         strategy.setKeeperStuff(
-            strategy.maxBaseFee(),
             0,
             strategy.harvestProfitMin()
         );

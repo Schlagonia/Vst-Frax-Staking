@@ -19,6 +19,10 @@ import { IAsset } from "./interfaces/Balancer/IAsset.sol";
 import { IUniswapV2Router02 } from "./interfaces/Uni/IUniswapV2Router02.sol";
 import { IStaker } from "./interfaces/Frax/IStaker.sol";
 
+interface IBaseFee {
+    function isCurrentBaseFeeAcceptable() external view returns (bool);
+}
+
 contract CurveFraxVst is BaseStrategy {
     using SafeERC20 for IERC20;
     using Address for address;
@@ -55,8 +59,9 @@ contract CurveFraxVst is BaseStrategy {
         IStaker(0x127963A74c07f72D862F2Bdc225226c3251BD117);
     //This IS the time the tokens are locked for when staked
     //Inititally set to the min time, 24hours, can be updated later if desired
-    uint256 public lockTime = 86400; 
-    //This is the max amount of Keks, we will allow the strat to have open to limit withdraw loops
+    uint256 public lockTime = 86400;
+    //A new "kek" is created each time we stake the LP token and a whole kek must be withdrawn during any withdraws 
+    //This is the max amount of Keks, we will allow the strat to have open at one time to limit withdraw loops
     uint256 public maxKeks = 5;
     //The index of the newest kek for deposit/withdraw tracking
     uint256 public newestKek;
@@ -72,17 +77,18 @@ contract CurveFraxVst is BaseStrategy {
     ICurveFi internal constant curvePool =
         ICurveFi(0x59bF0545FCa0E5Ad48E13DA269faCD2E8C886Ba4);
 
+    //Timestamp of the most recent deposit to track liquid funds
     uint256 public lastDeposit;
+    //Most recent amount deposited 
     uint256 public lastDepositAmount;
 
     //Keeper stuff
-    uint256 public maxBaseFee;
     bool public forceHarvestTriggerOnce;
     uint256 public harvestProfitMax;
     uint256 public harvestProfitMin;
 
     uint256 internal immutable minWant;
-    uint256 public immutable maxSingleInvest;
+    uint256 public maxSingleInvest;
 
     constructor(address _vault) BaseStrategy(_vault) {
         require(staker.stakingToken() == want, "Wrong want for staker");
@@ -93,7 +99,6 @@ contract CurveFraxVst is BaseStrategy {
         usdcVstPoolId = IBalancerPool(0x5A5884FC31948D59DF2aEcCCa143dE900d49e1a3).getPoolId();
 
         //Set initial Keeper stuff
-        maxBaseFee = 10e9;
         harvestProfitMax = type(uint256).max;
         harvestProfitMin = 100e18;
 
@@ -143,68 +148,52 @@ contract CurveFraxVst is BaseStrategy {
             uint256 _debtPayment
         )
     {
+        //Claim, sell and reinvest rewards.
         harvester();
 
-        //get base want balance
+        //get balances of what we have
         uint256 wantBalance = balanceOfWant();
-
         uint256 assets = wantBalance + stakedBalance();
 
         //get amount given to strat by vault
         uint256 debt = vault.strategies(address(this)).totalDebt;
 
-        //Balance - Total Debt is profit
+        uint256 needed;
+        //assets - Debt is profit
         if (assets >= debt) {
-            uint256 needed;
+            uint256 totalOwed;
             unchecked{
                 _profit = assets - debt;
-                needed = _profit + _debtOutstanding;
+                totalOwed = _profit + _debtOutstanding;
             }
-            if (needed > wantBalance) {
-                //Only gets called on harvest, which should be more that oneDay since last deposit so we should be liquid
-                withdrawSome(needed - wantBalance);
-
-                wantBalance = balanceOfWant();
-
-                if (wantBalance < needed) {
-                    if (_profit > wantBalance) {
-                        _profit = wantBalance;
-                        _debtPayment = 0;
-                    } else {
-                        _debtPayment = Math.min((wantBalance - _profit), _debtOutstanding);
-                    }
-                } else {
-                    _debtPayment = _debtOutstanding;
+            if (totalOwed > wantBalance) {
+                unchecked {
+                    needed = totalOwed - wantBalance;
                 }
-            } else {
-                _debtPayment = _debtOutstanding;
             }
         } else {
             _loss = debt - assets;
-            if (_debtOutstanding > wantBalance) {
-                //Only gets called on harvest which should be more that one Day apart so we dont need to check liquidity
-                withdrawSome(_debtOutstanding - wantBalance);
-                wantBalance = want.balanceOf(address(this));
+            if (_debtOutstanding > wantBalance) {             
+                unchecked {
+                    needed = _debtOutstanding - wantBalance;
+                }  
             }
-            _debtPayment = Math.min(wantBalance, _debtOutstanding);
         }
+
+        //Only gets called on harvest which should be more that one Day apart so we dont need to check liquidity
+        withdrawSome(needed);
+        _debtPayment = Math.min(balanceOfWant() - _profit, _debtOutstanding);
 
         forceHarvestTriggerOnce = false;
     }
 
-    function adjustPosition(uint256 _debtOutstanding) internal override {
+    function adjustPosition(uint256 /*_debtOutstanding*/) internal override {
         if (emergencyExit) {
             return;
         }
 
-        //we are spending all our cash unless we have debt outstanding
-        uint256 _wantBal = balanceOfWant();
-        if (_wantBal > _debtOutstanding) {
-
-            uint256 _wantToInvest = Math.min((_wantBal - _debtOutstanding), maxSingleInvest);
-            //stake
-            depositSome(_wantToInvest);
-        }
+        //we are staking all our want up to the maxSingleInvest
+        depositSome(Math.min(balanceOfWant(), maxSingleInvest));
     }
 
     function liquidatePosition(uint256 _amountNeeded)
@@ -221,7 +210,7 @@ contract CurveFraxVst is BaseStrategy {
                 needed = _amountNeeded - _liquidWant;
             } 
    
-            //Need to check that their is enough liquidity to withdraw so we dont report loss thats not true
+            //Need to check that there is enough liquidity to withdraw so we dont report loss thats not true
             if(lastDeposit + lockTime > block.timestamp) {
                 require(stakedBalance() - lastDepositAmount >= needed, "Need to wait till most recent deposit unlocks");
             }
@@ -445,7 +434,7 @@ contract CurveFraxVst is BaseStrategy {
     }
 
     function prepareMigration(address _newStrategy) internal override {
-        require(lastDeposit + lockTime < block.timestamp, "Lastest deposit is not avialable yet for withdraw");
+        require(lastDeposit + lockTime < block.timestamp, "Latest deposit is not avialable yet for withdraw");
         withdrawSome(type(uint256).max);
     
         uint256 fxsBal = fxs.balanceOf(address(this));
@@ -507,7 +496,7 @@ contract CurveFraxVst is BaseStrategy {
         }
 
         // check if the base fee gas price is higher than we allow. if it is, block harvests.
-        if (getBaseFee() > maxBaseFee) {
+        if (!isBaseFeeAcceptable()) {
             return false;
         }
 
@@ -564,13 +553,14 @@ contract CurveFraxVst is BaseStrategy {
         maxKeks = _maxKeks;
     }
 
+    function setMaxSingleInvestment(uint256 _maxSingleInvest) external onlyVaultManagers {
+        maxSingleInvest = _maxSingleInvest;
+    }
+
     function setKeeperStuff(
-        uint256 _maxBaseFee, 
         uint256 _harvestProfitMax, 
         uint256 _harvestProfitMin
     ) external onlyVaultManagers {
-        require(_maxBaseFee > 0, "Cant be 0");
-        maxBaseFee = _maxBaseFee;
         harvestProfitMax = _harvestProfitMax;
         harvestProfitMin = _harvestProfitMin;
     }
@@ -583,7 +573,10 @@ contract CurveFraxVst is BaseStrategy {
         forceHarvestTriggerOnce = _forceHarvestTriggerOnce;
     }
 
-    function getBaseFee() public view returns (uint256) {
-        return block.basefee;
+    // check if the current baseFee is below our external target
+    function isBaseFeeAcceptable() internal view returns (bool) {
+        return
+            IBaseFee(0xdF43263DFec19117f2Fe79d1D9842a10c7495CcD)
+                .isCurrentBaseFeeAcceptable();
     }
 }
