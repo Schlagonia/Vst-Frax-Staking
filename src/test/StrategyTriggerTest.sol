@@ -21,6 +21,9 @@ contract StrategyTriggerTest is StrategyFixture {
             vm_std_cheats.prank(user);
             want.transfer(address(123), bal);
         }
+
+        //Set max report delay to max for test
+        strategy.setMaxReportDelay(type(uint256).max);
         
         //Nohings happened yet should be false
         assertTrue(!strategy.harvestTrigger(1));

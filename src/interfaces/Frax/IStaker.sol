@@ -34,10 +34,8 @@ interface IStaker{
 
     function lockedStakesOf(address _address) external view returns(LockedStake[] memory);
 
-    function stake(uint256 amount) external;
     function stakeLocked(uint256 amount, uint256 secs) external;
 
-    function withdraw(uint256 amount) external;
     function withdrawLocked(bytes32 kek_id) external;
 
     //Claim rewards

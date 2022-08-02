@@ -354,31 +354,4 @@ contract StrategyOperationsTest is StrategyFixture {
         assertGt(vault.pricePerShare(), beforePps);
     }
     
-    function testMaxKeks(uint256 _amount) public {
-        vm_std_cheats.assume(_amount > 100 ether && _amount < 10_000 ether);
-        uint256 maxKeks =  strategy.maxKeks();
-
-        for(uint256 i; i < (maxKeks *2); i++) {
-            tip(address(want), user, _amount);
-            depositToVault(user, vault, _amount);
-
-            // Harvest: Send funds through the strategy
-            skip(1);
-            strategy.harvest();
-            //assertRelApproxEq(strategy.estimatedTotalAssets(), _amount, ONE_BIP_REL_DELTA);
-            skip(toSkip);
-        }
-
-        uint256 deposited = (maxKeks *2) * _amount;
-        //IStaker.LockedStake[] memory stakes = staker.lockedStakesOf(address(strategy));
-        assertEq(strategy.newestKek(), maxKeks * 2, "To many keks");
-        assertGe(strategy.stakedBalance(), deposited, "Staked balance wrong");
-
-        uint256 balanceBefore = want.balanceOf(address(user));
-        vm_std_cheats.prank(user);
-        vault.withdraw();
-        
-        assertGe(want.balanceOf(address(user)), balanceBefore + deposited, "not enough out");
-
-    }
 }

@@ -63,8 +63,8 @@ contract CurveFraxVst is BaseStrategy {
     //A new "kek" is created each time we stake the LP token and a whole kek must be withdrawn during any withdraws 
     //This is the max amount of Keks, we will allow the strat to have open at one time to limit withdraw loops
     uint256 public maxKeks = 5;
-    //The index of the newest kek for deposit/withdraw tracking
-    uint256 public newestKek;
+    //The index of the next kek to be deposited for deposit/withdraw tracking
+    uint256 public nextKek;
 
     //Router to use for FXS -> FRAX swaps
     IUniswapV2Router02 public constant fraxRouter =
@@ -139,6 +139,27 @@ contract CurveFraxVst is BaseStrategy {
         }
     }
 
+    //Returns the total amount that cannot yet be withdrawn from the staking contract
+    function totalLockedStake() public view returns (uint256) {
+        uint256 stillLocked;
+        IStaker.LockedStake[] memory stakes = staker.lockedStakesOf(address(this));
+        IStaker.LockedStake memory stake;
+        uint256 time = block.timestamp;
+        uint256 _nextKek = nextKek;
+        uint256 _maxKeks = maxKeks;
+        for(uint256 i; i < _maxKeks; i ++) {
+            uint256 index = _nextKek > _maxKeks ? _nextKek - _maxKeks + i : i;
+            stake = stakes[index];
+
+            if(stake.ending_timestamp > time) {
+                unchecked {
+                    stillLocked += stake.amount;
+                }
+            }
+        }
+        return stillLocked;
+    }
+
     function prepareReturn(uint256 _debtOutstanding)
         internal
         override
@@ -166,6 +187,7 @@ contract CurveFraxVst is BaseStrategy {
                 _profit = assets - debt;
                 totalOwed = _profit + _debtOutstanding;
             }
+
             if (totalOwed > wantBalance) {
                 unchecked {
                     needed = totalOwed - wantBalance;
@@ -212,7 +234,7 @@ contract CurveFraxVst is BaseStrategy {
    
             //Need to check that there is enough liquidity to withdraw so we dont report loss thats not true
             if(lastDeposit + lockTime > block.timestamp) {
-                require(stakedBalance() - lastDepositAmount >= needed, "Need to wait till most recent deposit unlocks");
+                require(stakedBalance() - totalLockedStake() >= needed, "Need to wait till most recent deposit unlocks");
             }
 
             withdrawSome(needed);
@@ -236,9 +258,9 @@ contract CurveFraxVst is BaseStrategy {
 
         //If we have already locked the max amount of keks, we need to withdraw the oldest one
         //And reinvest that along side the new funds
-        if(newestKek >= maxKeks) {
+        if(nextKek >= maxKeks) {
             //Get the oldest kek that could have funds in it
-            IStaker.LockedStake memory stake = staker.lockedStakesOf(address(this))[newestKek - maxKeks];
+            IStaker.LockedStake memory stake = staker.lockedStakesOf(address(this))[nextKek - maxKeks];
             //Make sure it hasnt already been withdrawn
             if(stake.amount > 0){
                 //Withdraw funds and add them to the amount to deposit
@@ -253,7 +275,7 @@ contract CurveFraxVst is BaseStrategy {
 
         lastDeposit = block.timestamp;
         lastDepositAmount = _amount;
-        newestKek ++;
+        nextKek ++;
     }
 
     function withdrawSome(uint256 _amount) internal {
@@ -261,11 +283,11 @@ contract CurveFraxVst is BaseStrategy {
 
         IStaker.LockedStake[] memory stakes = staker.lockedStakesOf(address(this));
 
-        uint256 i = newestKek > maxKeks ? newestKek - maxKeks : 0;
+        uint256 i = nextKek > maxKeks ? nextKek - maxKeks : 0;
         uint256 needed = _amount;
         IStaker.LockedStake memory stake;
         uint256 liquidity;
-        while(needed > 0 && i < newestKek) {
+        while(needed > 0 && i < nextKek) {
             stake = stakes[i];
             liquidity = stake.amount;
          
@@ -510,6 +532,11 @@ contract CurveFraxVst is BaseStrategy {
             return true;
         }
 
+        // Should trigger if hasn't been called in a while
+        if (block.timestamp - vault.strategies(address(this)).lastReport >= maxReportDelay) {
+            return true;
+        }
+
         // otherwise, we don't harvest
         return false;
     }
@@ -539,6 +566,15 @@ contract CurveFraxVst is BaseStrategy {
 
         assets += estimatedRewards;
         _claimableProfit = assets > debt ? assets - debt : 0;
+    }
+
+    //Function available to Governance to manually withdraw a specific kek
+    //Available if the counter or loops fail
+    //Pass the index of the kek to withdraw as the param
+    function manualWithdraw(uint256 index) external onlyGovernance {
+        staker.withdrawLocked(
+            staker.lockedStakesOf(address(this))[index].kek_id
+        );
     }
 
     //This can be used to update how long the tokens are locked when staked
