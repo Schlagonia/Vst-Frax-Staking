@@ -140,16 +140,16 @@ contract CurveFraxVst is BaseStrategy {
     }
 
     //Returns the total amount that cannot yet be withdrawn from the staking contract
-    function totalLockedStake() public view returns (uint256) {
-        uint256 stillLocked;
+    function stillLockedStake() public view returns (uint256 stillLocked) {
         IStaker.LockedStake[] memory stakes = staker.lockedStakesOf(address(this));
         IStaker.LockedStake memory stake;
         uint256 time = block.timestamp;
         uint256 _nextKek = nextKek;
         uint256 _maxKeks = maxKeks;
-        for(uint256 i; i < _maxKeks; i ++) {
-            uint256 index = _nextKek > _maxKeks ? _nextKek - _maxKeks + i : i;
-            stake = stakes[index];
+        uint256 i = _nextKek > _maxKeks ? _nextKek - _maxKeks : 0;
+        for(i; i < _nextKek; i ++) {
+
+            stake = stakes[i];
 
             if(stake.ending_timestamp > time) {
                 unchecked {
@@ -157,7 +157,6 @@ contract CurveFraxVst is BaseStrategy {
                 }
             }
         }
-        return stillLocked;
     }
 
     function prepareReturn(uint256 _debtOutstanding)
@@ -234,7 +233,7 @@ contract CurveFraxVst is BaseStrategy {
    
             //Need to check that there is enough liquidity to withdraw so we dont report loss thats not true
             if(lastDeposit + lockTime > block.timestamp) {
-                require(stakedBalance() - totalLockedStake() >= needed, "Need to wait till most recent deposit unlocks");
+                require(stakedBalance() - stillLockedStake() >= needed, "Need to wait till most recent deposit unlocks");
             }
 
             withdrawSome(needed);

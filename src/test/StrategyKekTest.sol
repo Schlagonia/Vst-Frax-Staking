@@ -84,4 +84,62 @@ contract StrategyKekTest is StrategyFixture {
         assertEq(strategy.nextKek(), 7 + 4);
     }
 
+    function testStillLocked(uint256 _amount) public {
+        vm_std_cheats.assume(_amount > 10 ether && _amount < 10_000 ether);
+        uint256 maxKeks =  strategy.maxKeks();
+
+        //Deposit up to the max keks all at once so everything is locked
+        for(uint256 i; i < maxKeks; i++) {
+            tip(address(want), user, _amount);
+            depositToVault(user, vault, _amount);
+
+            // Harvest: Send funds through the strategy
+            skip(1);
+            strategy.harvest();
+            //assertRelApproxEq(strategy.estimatedTotalAssets(), _amount, ONE_BIP_REL_DELTA);
+            skip(1);
+        }
+
+        assertEq(strategy.estimatedTotalAssets(), _amount * maxKeks);
+        assertEq(strategy.estimatedTotalAssets(), strategy.stillLockedStake());
+
+        skip(strategy.lockTime() + 1);
+
+        assertEq(strategy.estimatedTotalAssets(), _amount * maxKeks);
+        assertEq(0, strategy.stillLockedStake());
+
+        tip(address(want), user, _amount);
+        depositToVault(user, vault, _amount);
+
+        // Harvest: Send funds through the strategy
+        skip(1);
+        strategy.harvest();
+
+        assertGe(strategy.stillLockedStake(), _amount);
+    }
+
+    function testManualWithdraw(uint256 _amount) public {
+        vm_std_cheats.assume(_amount > 10 ether && _amount < 10_000 ether);
+        uint256 maxKeks =  strategy.maxKeks();
+
+        //Deposit up to the max keks all at once so everything is locked
+        for(uint256 i; i < maxKeks; i++) {
+            tip(address(want), user, _amount);
+            depositToVault(user, vault, _amount);
+
+            // Harvest: Send funds through the strategy
+            skip(1);
+            strategy.harvest();
+            //assertRelApproxEq(strategy.estimatedTotalAssets(), _amount, ONE_BIP_REL_DELTA);
+            skip(toSkip);
+        }
+
+        assertEq(strategy.balanceOfWant(), 0);
+
+        vm_std_cheats.prank(strategist);
+        strategy.manualWithdraw(_amount % maxKeks);
+
+        assertGe(strategy.balanceOfWant(), _amount);
+    }
+
 }
