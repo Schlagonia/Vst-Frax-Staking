@@ -16,10 +16,12 @@ contract StrategyKekTest is StrategyFixture {
 
     function testMaxKeks(uint256 _amount) public {
         vm_std_cheats.assume(_amount > 10 ether && _amount < 10_000 ether);
+
+        strategy.setMaxKeks(2);
         uint256 maxKeks =  strategy.maxKeks();
         console.log("max keks ", maxKeks);
-        //Pick a number between 2 and 7 to test how many multiples of deposits to do 
-        uint256 multiplier = (_amount % 5) + 2;
+        //Pick a number between 2 and 5 to test how many multiples of deposits to do 
+        uint256 multiplier = (_amount % 3) + 2;
 
         for(uint256 i; i < (maxKeks * multiplier); i++) {
             tip(address(want), user, _amount);
@@ -31,14 +33,17 @@ contract StrategyKekTest is StrategyFixture {
             console.log("Harvesting");
             strategy.harvest();
             console.log("harvested", i);
+            skip(toSkip +1);
             //assertRelApproxEq(strategy.estimatedTotalAssets(), _amount, ONE_BIP_REL_DELTA);
-            skip(toSkip);
+            
         }
 
+    
         uint256 deposited = (maxKeks * multiplier) * _amount;
         //IStaker.LockedStake[] memory stakes = staker.lockedStakesOf(address(strategy));
         assertEq(strategy.nextKek(), maxKeks * multiplier, "To many keks");
         assertGe(strategy.stakedBalance(), deposited, "Staked balance wrong");
+        assertEq(staker.lockedStakesOf(address(strategy))[strategy.nextKek() - strategy.maxKeks() - 1].amount, 0, "badness 2");
 
         uint256 balanceBefore = want.balanceOf(address(user));
         vm_std_cheats.prank(user);
@@ -65,7 +70,7 @@ contract StrategyKekTest is StrategyFixture {
         }
 
         uint256 newKeks = 7;
-        vm_std_cheats.prank(strategist);
+
         strategy.setMaxKeks(newKeks);
 
         assertEq(strategy.maxKeks(), newKeks);
@@ -81,7 +86,11 @@ contract StrategyKekTest is StrategyFixture {
             skip(toSkip);
         }
 
-        assertEq(strategy.nextKek(), 7 + 4);
+        assertGe(staker.lockedStakesOf(address(strategy))[strategy.nextKek() - strategy.maxKeks()].amount, _amount, "badness");
+        assertEq(staker.lockedStakesOf(address(strategy))[strategy.nextKek() - strategy.maxKeks() - 1].amount, 0, "badness 2");
+
+        vm_std_cheats.prank(user);
+        vault.withdraw();
     }
 
     function testStillLocked(uint256 _amount) public {
@@ -100,12 +109,12 @@ contract StrategyKekTest is StrategyFixture {
             skip(1);
         }
 
-        assertEq(strategy.estimatedTotalAssets(), _amount * maxKeks);
+        assertGe(strategy.estimatedTotalAssets(), _amount * maxKeks);
         assertEq(strategy.estimatedTotalAssets(), strategy.stillLockedStake());
 
         skip(strategy.lockTime() + 1);
 
-        assertEq(strategy.estimatedTotalAssets(), _amount * maxKeks);
+        assertGe(strategy.estimatedTotalAssets(), _amount * maxKeks);
         assertEq(0, strategy.stillLockedStake());
 
         tip(address(want), user, _amount);
@@ -136,10 +145,34 @@ contract StrategyKekTest is StrategyFixture {
 
         assertEq(strategy.balanceOfWant(), 0);
 
-        vm_std_cheats.prank(strategist);
         strategy.manualWithdraw(_amount % maxKeks);
 
         assertGe(strategy.balanceOfWant(), _amount);
+    }
+
+    function testChangeLockTime(uint256 _amount) public {
+        vm_std_cheats.assume(_amount > 10 ether && _amount < 10_000 ether);
+
+        toSkip = strategy.lockTime() * 2;
+        strategy.setLockTime(toSkip);
+       
+
+        //Deposit up to the max keks all at once so everything is locked
+        for(uint256 i; i < 2; i++) {
+            tip(address(want), user, _amount);
+            depositToVault(user, vault, _amount);
+
+            // Harvest: Send funds through the strategy
+            skip(1);
+            strategy.harvest();
+            //assertRelApproxEq(strategy.estimatedTotalAssets(), _amount, ONE_BIP_REL_DELTA);
+            skip(toSkip);
+        }
+
+        assertEq(strategy.balanceOfWant(), 0);
+
+        vm_std_cheats.prank(user);
+        vault.withdraw();
     }
 
 }
