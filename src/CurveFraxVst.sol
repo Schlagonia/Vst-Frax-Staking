@@ -453,7 +453,8 @@ contract CurveFraxVst is BaseStrategy {
     }
 
     //Migration should only be called if all funds are completely liquid
-    //In case of problems, emergencyExit should be set to true and then harvest the strategy
+    //In case of problems, emergencyExit can be set to true and then harvest the strategy.
+    //Or manually withdraw all liquid keks and wait until the remainder becomes liquid
     //This will allow as much of the liquid position to be withdrawn while allowing future withdraws for still locked tokens
     function prepareMigration(address _newStrategy) internal override {
         require(lastDeposit + lockTime < block.timestamp, "Latest deposit is not avialable yet for withdraw");
