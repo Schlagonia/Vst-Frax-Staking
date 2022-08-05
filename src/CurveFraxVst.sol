@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: AGPL-3.0
-// Feel free to change the license, but this is what we use
 pragma solidity ^0.8.12;
 pragma experimental ABIEncoderV2;
 
@@ -27,7 +26,7 @@ contract CurveFraxVst is BaseStrategy {
     using SafeERC20 for IERC20;
     using Address for address;
 
-    //LP Tokens
+    //Toekns in the LP
     IERC20 public constant vst =
         IERC20(0x64343594Ab9b56e99087BfA6F2335Db24c2d1F17);
     IERC20 public constant frax = 
@@ -73,7 +72,6 @@ contract CurveFraxVst is BaseStrategy {
     address internal constant fraxPair =
         0x053B92fFA8a15b7db203ab66Bbd5866362013566;
 
-    //Curve pool and indexs
     ICurveFi internal constant curvePool =
         ICurveFi(0x59bF0545FCa0E5Ad48E13DA269faCD2E8C886Ba4);
 
@@ -283,7 +281,7 @@ contract CurveFraxVst is BaseStrategy {
         IStaker.LockedStake[] memory stakes = staker.lockedStakesOf(address(this));
 
         uint256 i = nextKek > maxKeks ? nextKek - maxKeks : 0;
-        uint256 needed = _amount;
+        uint256 needed = Math.min(_amount, stakedBalance());
         IStaker.LockedStake memory stake;
         uint256 liquidity;
         while(needed > 0 && i < nextKek) {
@@ -454,6 +452,9 @@ contract CurveFraxVst is BaseStrategy {
         return balanceOfWant();
     }
 
+    //Migration should only be called if all funds are completely liquid
+    //In case of problems, emergencyExit should be set to true and then harvest the strategy
+    //This will allow as much of the liquid position to be withdrawn while allowing future withdraws for still locked tokens
     function prepareMigration(address _newStrategy) internal override {
         require(lastDeposit + lockTime < block.timestamp, "Latest deposit is not avialable yet for withdraw");
         withdrawSome(type(uint256).max);
@@ -547,8 +548,9 @@ contract CurveFraxVst is BaseStrategy {
 
         //Only use the Frax rewards
         (uint256 fxsEarned, ) = staker.earned(address(this));
+        fxsEarned += fxs.balanceOf(address(this));
 
-        uint256 estimatedRewards = 0;
+        uint256 estimatedRewards;
         if(fxsEarned > 0 ) {
             
             uint256 fxsToFrax = fraxRouter.getAmountOut(
@@ -570,7 +572,7 @@ contract CurveFraxVst is BaseStrategy {
     //Function available to Governance to manually withdraw a specific kek
     //Available if the counter or loops fail
     //Pass the index of the kek to withdraw as the param
-    function manualWithdraw(uint256 index) external onlyGovernance {
+    function manualWithdraw(uint256 index) external onlyEmergencyAuthorized {
         staker.withdrawLocked(
             staker.lockedStakesOf(address(this))[index].kek_id
         );
@@ -580,11 +582,28 @@ contract CurveFraxVst is BaseStrategy {
     //Care should be taken when increasing the time to only update directly before a harvest
     //Otherwise the timestamp checks when withdrawing could be inaccurate
     function setLockTime(uint256 _lockTime) external onlyVaultManagers {
-        require(_lockTime >= staker.lock_time_min(), "To low");
+        require(_lockTime >= staker.lock_time_min(), "Too low");
         lockTime = _lockTime;
     }
 
+    //Function to change the allowed amount of max keks
+    //Will withdraw funds if lowering the max. Should harvest after maxKeks is lowered
     function setMaxKeks(uint256 _maxKeks) external onlyVaultManagers {
+        //If we are lowering the max we need to withdraw the diff if we are already over the new max
+        if(_maxKeks < maxKeks && nextKek > _maxKeks) {
+            uint256 toWithdraw = maxKeks - _maxKeks;
+            IStaker.LockedStake[] memory stakes = staker.lockedStakesOf(address(this));
+            IStaker.LockedStake memory stake;
+            for(uint256 i; i < toWithdraw; i ++){
+                stake = stakes[nextKek - maxKeks + i];
+
+                //Need to make sure the kek can be withdrawn and is > 0
+                if(stake.amount > 0) {
+                    require(stake.ending_timestamp < block.timestamp, "Not liquid");
+                    staker.withdrawLocked(stake.kek_id);
+                }
+            }
+        }
         maxKeks = _maxKeks;
     }
 
@@ -605,7 +624,7 @@ contract CurveFraxVst is BaseStrategy {
         external
         onlyVaultManagers
     {
-        forceHarvestTriggerOnce = _forceHarvestTriggerOnce;
+        forceHarvestTriggerOnce = _forceHarvestTriggerOnce; 
     }
 
     // check if the current baseFee is below our external target

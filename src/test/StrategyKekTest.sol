@@ -45,6 +45,10 @@ contract StrategyKekTest is StrategyFixture {
         assertGe(strategy.stakedBalance(), deposited, "Staked balance wrong");
         assertEq(staker.lockedStakesOf(address(strategy))[strategy.nextKek() - strategy.maxKeks() - 1].amount, 0, "badness 2");
 
+        //Lower the max kek by 1 and make sure it withdraws one of the keks
+        strategy.setMaxKeks(maxKeks - 1);
+        assertGe(strategy.estimatedTotalAssets(), strategy.stakedBalance());
+
         uint256 balanceBefore = want.balanceOf(address(user));
         vm_std_cheats.prank(user);
         vault.withdraw();
