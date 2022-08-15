@@ -26,7 +26,7 @@ contract CurveFraxVst is BaseStrategy {
     using SafeERC20 for IERC20;
     using Address for address;
 
-    //Toekns in the LP
+    //Tokens in the LP
     IERC20 public constant vst =
         IERC20(0x64343594Ab9b56e99087BfA6F2335Db24c2d1F17);
     IERC20 public constant frax = 
@@ -38,14 +38,14 @@ contract CurveFraxVst is BaseStrategy {
     IERC20 internal constant fxs = 
         IERC20(0x9d2F299715D94d8A7E6F5eaa8E654E8c74a988A7);
     
-    //For swaping
+    //For swapping
     IERC20 internal constant weth =
         IERC20(0x82aF49447D8a07e3bd95BD0d56f35241523fBab1);
     // USDC used for swaps routing
     address internal constant usdc =
         0xFF970A61A04b1cA14834A43f5dE4533eBDDB5CC8;
 
-    //Balancer addresses for VSTA swaps
+    //Balancer variables for VSTA swaps
     IBalancerVault internal constant balancerVault =
         IBalancerVault(0xBA12222222228d8Ba445958a75a0704d566BF2C8);
 
@@ -56,7 +56,7 @@ contract CurveFraxVst is BaseStrategy {
     //Frax addresses and variables for staking
     IStaker public constant staker =
         IStaker(0x127963A74c07f72D862F2Bdc225226c3251BD117);
-    //This IS the time the tokens are locked for when staked
+    //This is the time the tokens are locked for when staked
     //Inititally set to the min time, 24hours, can be updated later if desired
     uint256 public lockTime = 86400;
     //A new "kek" is created each time we stake the LP token and a whole kek must be withdrawn during any withdraws 
@@ -72,6 +72,7 @@ contract CurveFraxVst is BaseStrategy {
     address internal constant fraxPair =
         0x053B92fFA8a15b7db203ab66Bbd5866362013566;
 
+    //Curve pool for the want LP token
     ICurveFi internal constant curvePool =
         ICurveFi(0x59bF0545FCa0E5Ad48E13DA269faCD2E8C886Ba4);
 
